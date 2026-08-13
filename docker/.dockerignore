@@ -1,0 +1,12 @@
+**/__pycache__/
+**/*.pyc
+venv/
+.venv/
+.git/
+.claude/
+benchmark/
+src/sieng/pipeline/config_workspace/
+*.png
+*.mp3
+*.wav
+*.avi

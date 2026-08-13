@@ -1,0 +1,124 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sieng"
+version = "3.0.0.dev0"
+description = "Steganography Integrated ENGine - adaptive JPEG/PNG steganography with hybrid post-quantum cryptography"
+requires-python = ">=3.11"
+readme = "README.md"
+
+# Source of truth for dependencies. requirements.txt is generated to match this.
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.14",
+    "pillow>=11.0",
+    "cryptography>=44.0",
+    "PyYAML>=6.0",
+    "networkx>=3.3",
+    "cffi>=1.17",
+    "portalocker>=3.0",
+
+    # D1 - JPEG quantized DCT (carrier/image/jpeg.py, Phase 3.3).
+    # Swap it out if test_jpeg_roundtrip_is_byte_exact fails.
+    "jpeglib>=1.0",
+
+    # D2/D3 - ML-KEM-768 (FIPS 203) and ML-DSA-65 (FIPS 204). Never implement these yourself.
+    # Drop this line if the installed cryptography already ships ML-KEM.
+    # Also needs the liboqs C library, which some platforms build from source.
+    "liboqs-python>=0.10",
+]
+
+[project.optional-dependencies]
+gui = ["PyQt6>=6.7"]
+analyzer = ["PyExifTool>=0.5", "hachoir>=3.3", "opencv-python>=4.10", "scikit-image>=0.24"]
+research = ["torch>=2.4", "scikit-learn>=1.5", "pandas>=2.2"]
+dev = [
+    "pytest>=8.0", "pytest-cov>=5.0", "hypothesis>=6.100",
+    "ruff>=0.6", "mypy>=1.11", "import-linter>=2.0",
+    # Local task runner. This project has no hosted CI (PROJECT_CONTEXT.md 2.6).
+    "nox>=2024.4",
+    "bandit>=1.7", "pip-audit>=2.7", "cyclonedx-bom>=4.6", "detect-secrets>=1.5",
+    # Neither of these builds on Windows.
+    "semgrep>=1.85; platform_system!='Windows'",
+    "atheris>=2.3; platform_system!='Windows'",
+]
+
+[project.scripts]
+sieng = "sieng.ui.cli.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sieng*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "RUF"]
+ignore = ["S101"]  # assert is how tests are written
+
+[tool.ruff.lint.per-file-ignores]
+# Calling external tools is the whole job of noxfile, so S603/S607 are not findings here.
+"noxfile.py" = ["S603", "S607"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+
+# Layers where a silent mistake is expensive (PROJECT_STRUCTURE.md 9.3)
+[[tool.mypy.overrides]]
+module = ["sieng.crypto.*", "sieng.coder.*", "sieng.carrier.*", "sieng.domain.*"]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "kat: known answer test, never skip",
+    "security: negative security test",
+    "slow: takes a while",
+]
+
+# Enforces the import matrix in PROJECT_STRUCTURE.md 2.2
+[tool.importlinter]
+root_package = "sieng"
+# Required because the torch contract forbids a package outside the project.
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "layered architecture"
+type = "layers"
+layers = [
+    "sieng.ui",
+    "sieng.pipeline",
+    "sieng.carrier",
+    "sieng.domain",
+    "sieng.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "crypto must be auditable on its own"
+type = "forbidden"
+source_modules = ["sieng.crypto"]
+forbidden_modules = [
+    "sieng.ui", "sieng.pipeline", "sieng.carrier",
+    "sieng.domain", "sieng.cost", "sieng.coder", "sieng.analyzer",
+]
+
+[[tool.importlinter.contracts]]
+name = "ui never holds raw keys"
+type = "forbidden"
+source_modules = ["sieng.ui"]
+forbidden_modules = ["sieng.crypto", "sieng.coder", "sieng.cost"]
+
+[[tool.importlinter.contracts]]
+name = "torch stays out of product code"
+type = "forbidden"
+source_modules = ["sieng"]
+forbidden_modules = ["torch"]
