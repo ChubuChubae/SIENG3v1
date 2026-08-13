@@ -18,7 +18,7 @@ def test_builds_with_default_settings():
 
 
 def test_uses_the_settings_it_is_given():
-    settings = Settings(workspace_dir=Path("/tmp/ws"), temp_dir=Path("/tmp/ws/tmp"))
+    settings = Settings(workspace_dir=Path("/fake/ws"), temp_dir=Path("/fake/ws/tmp"))
 
     assert build_container(settings).settings is settings
 
@@ -33,7 +33,7 @@ def test_registries_are_still_empty():
 
 
 def test_summary_mentions_the_workspace():
-    settings = load_settings(workspace_dir="/tmp/ws-summary", temp_dir="/tmp/ws-summary/tmp")
+    settings = load_settings(workspace_dir="/fake/ws-summary", temp_dir="/fake/ws-summary/tmp")
 
     assert "ws-summary" in build_container(settings).summary()
 

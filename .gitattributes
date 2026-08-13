@@ -1,0 +1,13 @@
+# Normalise line endings so a Windows/Linux round trip does not show every file as changed.
+* text=auto eol=lf
+
+# Windows-only files keep CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binary, never touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pth binary
+*.ckpt binary

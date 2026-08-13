@@ -10,9 +10,9 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 # Rationale for these values: docs/PROJECT_STRUCTURE.md 4.1
-DEFAULT_STC_HEIGHT = 10           # STC constraint height, use 12 for numbers in the paper
-DEFAULT_PAYLOAD_RATE = 0.1        # bpnzAC
-DEFAULT_MAX_RATCHET_SKIP = 1000   # caps how far the receiver will ratchet forward
+DEFAULT_STC_HEIGHT = 10  # STC constraint height, use 12 for numbers in the paper
+DEFAULT_PAYLOAD_RATE = 0.1  # bpnzAC
+DEFAULT_MAX_RATCHET_SKIP = 1000  # caps how far the receiver will ratchet forward
 DEFAULT_LOG_LEVEL = "INFO"
 
 ENV_PREFIX = "SIENG_"
@@ -96,12 +96,12 @@ def read_env():
             continue
         try:
             values[field] = convert(raw)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as error:
             raise SettingsError(
                 f"Cannot parse {ENV_PREFIX}{field.upper()}='{raw}': "
                 f"expected a value convertible to "
                 f"{getattr(convert, '__name__', 'the expected type')}"
-            )
+            ) from error
     return values
 
 
@@ -118,7 +118,7 @@ def read_toml(path: Path):
     return section if isinstance(section, dict) else {}
 
 
-def load_settings(config_path: Path = None, **overrides):
+def load_settings(config_path: Path | None = None, **overrides):
     """Build Settings from every source. Call once at startup and pass the result around.
 
     Calling this from other modules gives you a second, possibly different config.

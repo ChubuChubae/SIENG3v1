@@ -29,8 +29,8 @@ pytestmark = pytest.mark.usefixtures("clean_env")
 def test_out_of_range_value_is_not_clamped():
     with pytest.raises(SettingsError):
         Settings(
-            workspace_dir=Path("/tmp/ws"),
-            temp_dir=Path("/tmp/ws/tmp"),
+            workspace_dir=Path("/fake/ws"),
+            temp_dir=Path("/fake/ws/tmp"),
             default_stc_height=99,
         )
 

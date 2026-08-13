@@ -2,7 +2,7 @@
 
 > **อ่านไฟล์นี้ก่อนเริ่มงานทุกครั้ง** แล้วเข้างานต่อได้เลยโดยไม่ต้องไล่อ่านโค้ดทั้งโปรเจกต์
 > ไฟล์นี้ตอบ 4 คำถาม: ตอนนี้อยู่ที่ไหน · ตกลงกันไว้ว่าอะไร · ต้องทำอะไรต่อ · อะไรยังไม่ได้ตัดสินใจ
-> อ้างอิงสถาปัตยกรรม: `docs/PROJECT_STRUCTURE.md` (v1.2) · `docs/ARCHITECTURE_v3.md`
+> อ้างอิงสถาปัตยกรรม: `docs/PROJECT_STRUCTURE.md` (v1.2)
 > อัปเดตล่าสุด: 2026-08-12
 
 ---
@@ -11,39 +11,56 @@
 
 ### 1.1 สรุปในหนึ่งย่อหน้า
 
-โปรเจกต์อยู่ในสถานะ **skeleton เปล่า** — โครงโฟลเดอร์ตาม `PROJECT_STRUCTURE.md` ครบทั้ง 41 แพ็กเกจ มีแต่ `__init__.py` ที่บรรจุ docstring อธิบายหน้าที่ของแต่ละชั้น ไม่มีโค้ดทำงานเหลืออยู่เลย
-โค้ดเดิม (GUI, analyzer, stego, crypto ~16,800 บรรทัด) ถูกย้ายเข้าโครงใหม่แล้วลบออกโดยเจตนา เพื่อเริ่มเขียนใหม่ตามสัญญาของแต่ละชั้น
+โฟลเดอร์โปรเจกต์คือ **`SIENG3v1`** (เปลี่ยนชื่อมาจาก `SIENG2_2`)
+สถานะคือ **skeleton ที่ Phase 0 เสร็จแล้ว** — โครงครบทั้ง 41 แพ็กเกจตาม `PROJECT_STRUCTURE.md`
+ชั้น `app` `ui` มีโค้ดจริงที่รันได้ ส่วนชั้น `carrier` `domain` `cost` `coder` `crypto` `pipeline` `analyzer`
+ยังมีแต่ `__init__.py` ที่บรรจุ docstring บอกหน้าที่และข้อห้ามของชั้นนั้น
+โค้ดเดิม (GUI, analyzer, stego, crypto ~16,800 บรรทัด) ถูกลบโดยเจตนา เพื่อเริ่มเขียนใหม่ตามสัญญาของแต่ละชั้น
 
 ### 1.2 ตัวเลขจริง
 
 | รายการ | จำนวน |
 |---|---:|
 | แพ็กเกจ Python ใน `src/sieng` | 41 |
-| ไฟล์ `.py` (มีแต่ `__init__.py`) | 42 ไฟล์ / 120 บรรทัด |
-| `import` ผ่านทุกแพ็กเกจ | 41/41 ✔ |
-| ไฟล์ทรัพยากรที่เก็บไว้ | 88 (svg 43 · png 38 · qss 1 · yaml 5 · c 1) |
-| ไฟล์ test ที่มีอยู่ | 13 (ยังรันไม่ผ่าน — เป็นสเปกล่วงหน้า) |
+| ไฟล์ `.py` ใน `src/sieng` | 45 ไฟล์ / 458 บรรทัด (Phase 0 เพิ่ม `app` กับ `ui` เข้ามา) |
+| ไฟล์ test | 13 ไฟล์ / 393 บรรทัด — **34 test ผ่านหมด** |
+| ไฟล์ทรัพยากร | 88 (svg 43 · png 38 · qss 1 · yaml 5 · c 1) |
+| `pip install -e .` | ผ่านแล้ว (มี `src/sieng.egg-info/`) |
+| `nox` ชุดมาตรฐาน 6 session | **ผ่านหมด** — lint · types · imports (4 contracts kept) · unit 86 · vectors · security 9+1 skip |
+| git | repo ใหม่ commit เดียว `ADD: Create Skeleton Project` |
 
 ### 1.3 อะไรมีอยู่ อะไรไม่มี
 
 | มีอยู่แล้ว | สภาพ |
 |---|---|
+| `src/sieng/app/` `ui/gui/bootstrap.py` `ui/cli/__main__.py` | **โค้ดจริงที่รันได้** จาก Phase 0.3 |
 | `src/sieng/**/__init__.py` | docstring อธิบายหน้าที่ + ข้อห้ามของแต่ละชั้น · 5 ไฟล์มี `# TODO(skeleton):` บอกว่าต้อง export อะไรกลับมา |
+| `noxfile.py` `scripts/check.sh` `scripts/check.ps1` | ชุดตรวจ 15 session รันในเครื่อง |
+| `.gitignore` `.gitattributes` | ignore cache/build artifact · บังคับ line ending เป็น LF |
 | `src/sieng/ui/gui/assets/` | ไอคอน svg 43 + png 38 (ซ้ำกันเกือบทั้งหมด — ควรเหลือ svg) |
 | `src/sieng/ui/gui/styles/default.qss` | ธีมมืด ใช้ได้เลย |
 | `src/sieng/pipeline/yaml/templates/*.yaml` | 5 เทมเพลต — **อ้าง engine ที่ยังไม่มี และ 2 ไฟล์อ้าง mp3 ที่นอกสโคป** |
 | `src/sieng/coder/_native/stc_kernel.c` | ยังไม่ได้ตรวจว่าใช้ได้จริง |
-| `tests/` 13 ไฟล์ | อ้าง API ที่ยังไม่มี → ใช้เป็น **สเปก** ว่าโค้ดต้องทำอะไรได้ |
-| `docs/` | `PROJECT_STRUCTURE.md`, `ARCHITECTURE_v3.md`, ไฟล์นี้ |
+| `tests/` 13 ไฟล์ | 34 test ครอบโค้ด Phase 0 · โฟลเดอร์ `vectors` `property` `integration` `fuzz` ยังว่างรอเฟสของมัน |
+| `docs/` | `PROJECT_STRUCTURE.md` และไฟล์นี้ |
 | `research/` | `README.md`, `datasets/split.py`, `stats.py` |
 | `tools/` | `run_tests_nopytest.py`, `analysis/lsbpp_surface_analysis.py` |
-| `pyproject.toml`, `SECURITY.md`, `main.py` | มีอยู่ ยังไม่ได้ตรวจสอบความถูกต้อง |
+| `pyproject.toml` `requirements.txt` `README.md` `SECURITY.md` `main.py` | ตรวจแล้ว ติดตั้งได้จริง |
 
 | ยังไม่มี |
 |---|
-| โค้ดทำงานทุกชั้น — `carrier`, `domain`, `cost`, `coder`, `crypto`, `pipeline`, `analyzer` และหน้าจอจริงของ `ui` |
+| โค้ดทำงานของ `carrier`, `domain`, `cost`, `coder`, `crypto`, `pipeline`, `analyzer` และหน้าจอจริงของ `ui` |
 | เอกสาร P0 สามฉบับ: `THREAT_MODEL.md`, `SESSION_PROTOCOL.md`, `FORMAT_SPEC.md` |
 | fixture ภาพตัวอย่าง · lockfile |
+
+**ต้องทำบนเครื่อง Windows เอง** — sandbox ที่ผมใช้แก้ `.git/` ไม่ได้ (`index.lock` ลบไม่ออก)
+
+```
+git rm -r --cached src/sieng.egg-info    # build artifact ที่หลุดเข้า commit แรก
+git add --renormalize .                  # ให้ .gitattributes มีผลย้อนหลัง แก้ CRLF
+git add .gitignore .gitattributes
+git commit -m "chore: ignore build artifacts and normalise line endings"
+```
 
 ### 1.3.1 Phase 0 — ทำไปแล้วอะไรบ้าง
 
@@ -124,6 +141,10 @@
 | **ไฟล์ `.py` ต้องเป็น ASCII ล้วน** | ห้ามใช้ `—` `★` `·` `→` แม้ในคอมเมนต์ · ruff เปิด `RUF001-003` ไว้ตรวจแล้ว (ภาษาไทยใช้ได้เฉพาะใน `docs/*.md`) |
 | **ไม่ใช้ `from __future__ import annotations`** | โปรเจกต์กำหนด Python 3.11+ ไวยากรณ์ใหม่ใช้ได้ตรงๆ อยู่แล้ว |
 | **บรรทัดยาวไม่เกิน 100 ตัวอักษร** | นับเป็นตัวอักษร ไม่ใช่ byte (`line-length = 100`) |
+| **ห้ามจัดคอมเมนต์ท้ายบรรทัดให้ตรงคอลัมน์** | `ruff format` บีบเหลือ 2 ช่องเสมอ — เขียน `VALUE = 10  # note` ไม่ใช่ `VALUE = 10      # note` |
+| **`raise ... from error` ทุกครั้งที่อยู่ใน `except`** | ทำให้ traceback แยกออกว่า error มาจาก input ที่ผิด หรือมาจากบั๊กในโค้ดที่จัดการ error เอง |
+| **ห้าม implicit Optional** | `config_path: Path \| None = None` ไม่ใช่ `config_path: Path = None` |
+| **path ปลอมใน test ใช้ `/fake/...` ไม่ใช่ `/tmp/...`** | สื่อว่าไม่มีการแตะดิสก์จริง และไม่ไปชน `S108` ที่ยังต้องเปิดไว้ตรวจโค้ดจริง |
 
 #### Type hint
 

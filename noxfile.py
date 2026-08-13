@@ -73,8 +73,11 @@ def imports(session):
 
     Contracts live in [tool.importlinter] in pyproject.toml. A red run means code landed
     in the wrong layer. Fix the code, not the contract.
+
+    PYTHONPATH is set so this works whether or not the package is installed, the same
+    way tests/conftest.py does it.
     """
-    session.run("lint-imports", external=True)
+    session.run("lint-imports", external=True, env={"PYTHONPATH": "src"})
 
 
 # ---- tests -----------------------------------------------------------------

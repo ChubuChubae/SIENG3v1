@@ -16,8 +16,8 @@ from sieng.app.settings import (
 
 pytestmark = pytest.mark.usefixtures("clean_env")
 
-# Any path works, these tests never touch the disk
-WORKSPACE = {"workspace_dir": Path("/tmp/ws"), "temp_dir": Path("/tmp/ws/tmp")}
+# Deliberately not a real directory. These tests never touch the disk.
+WORKSPACE = {"workspace_dir": Path("/fake/ws"), "temp_dir": Path("/fake/ws/tmp")}
 
 
 def make_settings(**changes):

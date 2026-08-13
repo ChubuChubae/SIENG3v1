@@ -2,7 +2,7 @@
 
 > เอกสารอ้างอิงโครงสร้างโปรเจกต์ฉบับสมบูรณ์
 > เป้าหมาย: developer ที่เพิ่งเข้าทีมอ่านเอกสารนี้จบแล้วรู้ว่าโค้ดอยู่ตรงไหน ทำอะไร คุยกับใคร และถ้าจะเพิ่มของใหม่ต้องแตะไฟล์ไหน โดยไม่ต้องเปิดอ่านทีละไฟล์
-> เวอร์ชันเอกสาร: **1.2** · อ้างอิง `docs/ARCHITECTURE_v3.md`
+> เวอร์ชันเอกสาร: **1.2** · สถานะปัจจุบันและลำดับงานอยู่ใน `docs/PROJECT_CONTEXT.md`
 
 **สิ่งที่เปลี่ยนใน 1.2 — ลดสโคป carrier**
 
@@ -340,7 +340,7 @@ pipeline/extract.py :: run_extract()
   │
   ├─► crypto/header.py :: unwhiten_and_parse(bits_prefix, K_hdr_session)
   │     ★ header ถูก whiten ด้วยคีย์ระดับ session ไม่ใช่ระดับ message
-  │       เพราะยังไม่รู้ ctr จึงยังหา MK[ctr] ไม่ได้ (ดู ARCHITECTURE_v3 §5)
+  │       เพราะยังไม่รู้ ctr จึงยังหา MK[ctr] ไม่ได้ (ดู §4.6 หัวข้อ kdf/)
   │     ได้ ver, suite, sid, ctr, len, flags
   │
   ├─► crypto/ratchet/chain.py :: keys_for(ctr)
@@ -744,7 +744,7 @@ SIENG2_2/
 │
 └── docs/
     ├── PROJECT_STRUCTURE.md                [E]  เอกสารนี้
-    ├── ARCHITECTURE_v3.md                  [E]
+    ├── PROJECT_CONTEXT.md                   [E]  สถานะปัจจุบัน + scope งานรายโมดูล
     ├── THREAT_MODEL.md                     [N!] ★ P0 — ต้องเขียนก่อน implementation
     ├── SESSION_PROTOCOL.md                 [N!] ★ P0 — handshake + auth + envelope
     ├── FORMAT_SPEC.md                      [N!] ★ P0 — bit-level ของ header + envelope

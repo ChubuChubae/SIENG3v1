@@ -30,11 +30,11 @@ def run(container):
     try:
         from PyQt6.QtGui import QFont
         from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow
-    except ImportError:
+    except ImportError as error:
         raise GuiUnavailableError(
             'PyQt6 is not installed. Run: pip install -e ".[gui]" '
             "(or use the CLI instead: sieng --status)"
-        )
+        ) from error
 
     app = QApplication([])
     app.setFont(QFont(*DEFAULT_FONT))
