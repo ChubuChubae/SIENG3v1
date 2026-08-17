@@ -23,11 +23,17 @@ def test_uses_the_settings_it_is_given():
     assert build_container(settings).settings is settings
 
 
-def test_registries_are_still_empty():
-    """Phase 0 has none yet, so a red result means something half-finished got registered."""
+def test_phase_one_carriers_are_registered():
+    """jpg and png only. Anything else must be refused, never quietly handled."""
     container = build_container()
 
-    assert container.carriers == {}
+    assert container.carriers.suffixes() == [".jpe", ".jpeg", ".jpg", ".png"]
+
+
+def test_cost_and_engine_registries_are_still_empty():
+    """A red result here means something half-finished got registered."""
+    container = build_container()
+
     assert container.costs == {}
     assert container.engines == {}
 
@@ -45,3 +51,4 @@ def test_each_call_returns_a_separate_container():
 
     assert first is not second
     assert first.carriers is not second.carriers
+    assert first.costs is not second.costs
