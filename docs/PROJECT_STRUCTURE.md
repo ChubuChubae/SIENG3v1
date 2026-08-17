@@ -1358,8 +1358,8 @@ def destroy_session(sid: bytes) -> DestroyReport:
 #### `header.py`
 
 ```python
-HEADER_LEN_COMPACT = 12
-HEADER_LEN_BOUND   = 16
+HEADER_BYTES = 12   # D6 เคาะแล้ว - ดู FORMAT_SPEC.md 3.1
+HEADER_BITS  = 96
 
 @dataclass(frozen=True)
 class Header:
@@ -1888,14 +1888,16 @@ byte 11 │ flags (8)                                                     │
         │   bit0 = has_precover        bit1 = multipart                │
         │   bit2-3 = envelope mode     bit4 = auth mode                │
         │   bit5 = session bootstrap   bit6-7 = reserved (ต้องเป็น 0)  │
-─────────── compact = 12 B จบตรงนี้ ───────────
-byte 12-15│ carrier binding tag (32)  = truncate(fingerprint, 4 B)      │
-─────────── bound = 16 B ───────────
+─────────── รวม 12 B ───────────
 
-ทั้งก้อนถูก XOR ด้วย keystream จาก HKDF(K_hdr_session) ก่อนนำไปฝัง
+ทั้งก้อนถูก XOR ด้วย keystream จาก HKDF(K_hdr_session ‖ ctr) ก่อนนำไปฝัง
 ```
 
-รายละเอียดระดับ bit ฉบับสมบูรณ์อยู่ใน `docs/FORMAT_SPEC.md` (ยังไม่เขียน)
+**D6 เคาะแล้ว: 12 B** — ทางเลือก 16 B ที่เคยเสนอไว้มี carrier binding tag 4 B ต่อท้าย แต่ **ซ้ำซ้อน**
+เพราะ AAD ผูกกับ `carrier.fingerprint()` เต็มรูปอยู่แล้ว tag ให้แค่การรู้เร็วขึ้นว่าเป็นไฟล์ผิด
+ซึ่งเป็น optimization ไม่ใช่ความปลอดภัย และกินความจุเพิ่ม 33%
+
+รายละเอียดระดับ bit ฉบับสมบูรณ์อยู่ใน `docs/FORMAT_SPEC.md` §3
 
 ### 7.3 ไฟล์ที่ระบบเขียนลงดิสก์
 

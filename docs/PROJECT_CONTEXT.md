@@ -42,7 +42,7 @@
 | `src/sieng/pipeline/yaml/templates/*.yaml` | 5 เทมเพลต — **อ้าง engine ที่ยังไม่มี และ 2 ไฟล์อ้าง mp3 ที่นอกสโคป** |
 | `src/sieng/coder/_native/stc_kernel.c` | ยังไม่ได้ตรวจว่าใช้ได้จริง |
 | `tests/` 13 ไฟล์ | 34 test ครอบโค้ด Phase 0 · โฟลเดอร์ `vectors` `property` `integration` `fuzz` ยังว่างรอเฟสของมัน |
-| `docs/` | `PROJECT_STRUCTURE.md` และไฟล์นี้ |
+| `docs/` | `PROJECT_STRUCTURE.md` · **`THREAT_MODEL.md` · `SESSION_PROTOCOL.md` · `FORMAT_SPEC.md`** (Phase 1) · ไฟล์นี้ |
 | `research/` | `README.md`, `datasets/split.py`, `stats.py` |
 | `tools/` | `run_tests_nopytest.py`, `analysis/lsbpp_surface_analysis.py` |
 | `pyproject.toml` `requirements.txt` `README.md` `SECURITY.md` `main.py` | ตรวจแล้ว ติดตั้งได้จริง |
@@ -50,7 +50,6 @@
 | ยังไม่มี |
 |---|
 | โค้ดทำงานของ `carrier`, `domain`, `cost`, `coder`, `crypto`, `pipeline`, `analyzer` และหน้าจอจริงของ `ui` |
-| เอกสาร P0 สามฉบับ: `THREAT_MODEL.md`, `SESSION_PROTOCOL.md`, `FORMAT_SPEC.md` |
 | fixture ภาพตัวอย่าง · lockfile |
 
 **ต้องทำบนเครื่อง Windows เอง** — sandbox ที่ผมใช้แก้ `.git/` ไม่ได้ (`index.lock` ลบไม่ออก)
@@ -861,7 +860,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 | Phase | Module | Status |
 |:---:|---|:---:|
 | 0 | 0.1 Packaging · 0.2 Tooling & local checks · 0.3 Entry point | ☑ ☑ ☑ |
-| 1 | 1.1 THREAT_MODEL · 1.2 SESSION_PROTOCOL · 1.3 FORMAT_SPEC | ☐ ☐ ☐ |
+| 1 | 1.1 THREAT_MODEL · 1.2 SESSION_PROTOCOL · 1.3 FORMAT_SPEC | ☑ ☑ ☑ |
 | 2 | 2.1 common · 2.2 domain | ☐ ☐ |
 | 3 | 3.1 base · 3.2 detect · 3.3 jpeg · 3.4 png · 3.5 fixtures | ☐ ☐ ☐ ☐ ☐ |
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
@@ -888,7 +887,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 | D3 | ไลบรารี ML-DSA-65 | `liboqs-python` · ตัด `AUTH_PQ_EXPLICIT` ออกจาก Phase 1 | Phase 7.3 |
 | ~~D4~~ | ~~Python เวอร์ชันต่ำสุด~~ | **เคาะแล้ว: 3.11+** — ตั้งไว้ใน `pyproject.toml` แล้ว | ✔ |
 | D5 | STC kernel | C + numpy fallback · numpy อย่างเดียวไปก่อน | Phase 5.2 |
-| D6 | ขนาด header | 12 B (compact) · 16 B (มี carrier binding tag) | Phase 1.3 |
+| ~~D6~~ | ~~ขนาด header~~ | **เคาะแล้ว: 12 B** — binding tag ซ้ำซ้อนกับ AAD (`FORMAT_SPEC.md` §3.1) | ✔ |
 | ~~D7~~ | ~~`tests/` 13 ไฟล์ที่มีอยู่~~ | **เคาะแล้ว: ลบทิ้ง** — เหลือโครงโฟลเดอร์ 6 ชั้น เขียน test ใหม่ตอนทำแต่ละ module | ✔ |
 | ~~D8~~ | ~~`src/sieng/_deferred/`~~ | **เคาะแล้ว: ลบทิ้ง** | ✔ |
 | D9 | Template yaml 2 ไฟล์ที่อ้าง mp3 | เปลี่ยนเป็น jpg/png · ย้ายออกไปรอ Phase 2 | Phase 8.7 |
@@ -903,8 +902,8 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 1. **ปิด Phase 0.2 ให้จบ** — รัน `pip install -e ".[gui,analyzer,dev]"` บนเครื่องจริง แล้ว `nox`
    ต้องผ่านครบ · แก้สิ่งที่แดง · สร้าง lockfile
    (ยังเหลือข้อนี้เพราะเครื่องที่ใช้สร้างไฟล์เข้า PyPI ไม่ได้ จึงยังไม่ได้รัน ruff/mypy/nox จริง)
-2. ทำ **Phase 1** (เอกสาร P0 สามฉบับ) — งานเขียนล้วน ไม่มีโค้ด แต่บล็อกทุกอย่างที่เหลือ
-3. ทำ **Phase 2** (`common` + `domain`) — ไม่ขึ้นกับ Phase 1 ทำขนานกันได้
-4. เคาะ **D1** แล้วลุย **Phase 3.3** ให้ `test_jpeg_roundtrip_is_byte_exact` ผ่าน
+2. ทำ **Phase 2** (`common` + `domain`) — เริ่มได้เลย ไม่ขึ้นกับใคร · `plane.py` ต้อง freeze หลังจบเฟส
+3. เคาะ **D1** (ไลบรารี JPEG) แล้วลุย **Phase 3.3** ให้ `test_jpeg_roundtrip_is_byte_exact` ผ่าน
+4. เคาะ **D2/D3** (ไลบรารี ML-KEM/ML-DSA) ก่อนถึง Phase 7
 
 > **ก่อนเริ่มเขียนโค้ดจริง แนะนำให้คัดลอกโฟลเดอร์ทั้งชุดเก็บไว้เป็นจุดย้อนกลับ** — โปรเจกต์นี้ไม่มีระบบกู้คืนอัตโนมัติ งานที่หายไปแล้วหายเลย
