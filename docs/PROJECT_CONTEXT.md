@@ -36,6 +36,17 @@
 | `src/sieng/app/` `ui/gui/bootstrap.py` `ui/cli/__main__.py` | **โค้ดจริงที่รันได้** จาก Phase 0.3 |
 | `src/sieng/common/` | Phase 2.1 — exception hierarchy 14 ตัว · `RedactingFilter` · `ProgressReporter.scoped()` |
 | `src/sieng/domain/` | Phase 2.2 — `Plane` (**freeze แล้ว**) · `build_changeable_mask` · `permute` · capacity |
+| `src/sieng/carrier/` | Phase 3 ครบ — `Carrier` ABC · `CarrierRegistry` · `sniff` จาก magic · **`PngCarrier` และ `JpegCarrier` byte-exact** |
+
+**สิ่งที่ spike ค้นพบและกลายเป็นข้อบังคับของ `_jpeg_codec.py`**
+
+libjpeg 6b เก็บ coefficient ได้ครบทุก byte แต่เขียน header ต่างจากต้นฉบับ 3 จุด — APP0 ซ้ำ (+18 B),
+component id ใน SOF และ SOS เปลี่ยนจากฐาน 1 เป็นฐาน 0 ทั้งหมดเป็น metadata ที่คนเทียบกับต้นฉบับเห็นได้
+`splice()` จึงประกอบไฟล์เอง: **header ของต้นฉบับทั้งดุ้น + entropy data ใหม่**
+และมี `verify_tables_match()` กันกรณีที่ libjpeg เขียน DQT/DHT ใหม่ตอนแก้ coefficient
+ซึ่งจะทำให้ entropy data ถอดด้วยตารางเดิมไม่ได้ — เจอแล้วต้องหยุด ไม่ใช่ปล่อยไฟล์ที่ถอดออกมาเป็นขยะ
+| `tests/fixtures/` | 10 ไฟล์ 431 KiB — png 4 แบบ · jpg QF 50/75/95 · progressive · ไฟล์ที่ต้องถูกปฏิเสธ · สร้างซ้ำได้ด้วย `make_fixtures.py` |
+| `tools/spike_jpeglib.py` | สคริปต์ตอบ D1 — ต้องรันบน Windows ก่อนเขียน Phase 3.3 |
 | `src/sieng/**/__init__.py` | docstring อธิบายหน้าที่ + ข้อห้ามของแต่ละชั้น · 5 ไฟล์มี `# TODO(skeleton):` บอกว่าต้อง export อะไรกลับมา |
 | `noxfile.py` `scripts/check.sh` `scripts/check.ps1` | ชุดตรวจ 15 session รันในเครื่อง |
 | `.gitignore` `.gitattributes` | ignore cache/build artifact · บังคับ line ending เป็น LF |
@@ -46,7 +57,7 @@
 | `tests/` 13 ไฟล์ | 34 test ครอบโค้ด Phase 0 · โฟลเดอร์ `vectors` `property` `integration` `fuzz` ยังว่างรอเฟสของมัน |
 | `docs/` | `PROJECT_STRUCTURE.md` · **`THREAT_MODEL.md` · `SESSION_PROTOCOL.md` · `FORMAT_SPEC.md`** (Phase 1) · ไฟล์นี้ |
 | `research/` | `README.md`, `datasets/split.py`, `stats.py` |
-| `tools/` | `run_tests_nopytest.py`, `analysis/lsbpp_surface_analysis.py` |
+| `tools/` | `spike_jpeglib.py` — ตรวจว่า jpeglib ยังทำตัวตามที่ `_jpeg_codec.py` สมมติไว้ |
 | `pyproject.toml` `requirements.txt` `README.md` `SECURITY.md` `main.py` | ตรวจแล้ว ติดตั้งได้จริง |
 
 | ยังไม่มี |
@@ -873,7 +884,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 | 0 | 0.1 Packaging · 0.2 Tooling & local checks · 0.3 Entry point | ☑ ☑ ☑ |
 | 1 | 1.1 THREAT_MODEL · 1.2 SESSION_PROTOCOL · 1.3 FORMAT_SPEC | ☑ ☑ ☑ |
 | 2 | 2.1 common · 2.2 domain | ☑ ☑ |
-| 3 | 3.1 base · 3.2 detect · 3.3 jpeg · 3.4 png · 3.5 fixtures | ☐ ☐ ☐ ☐ ☐ |
+| 3 | 3.1 base · 3.2 detect · 3.3 jpeg · 3.4 png · 3.5 fixtures | ☑ ☑ ☑ ☑ ☑ |
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☐ ☐ ☐ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☐ ☐ ☐ ☐ ☐ ☐ |
@@ -893,7 +904,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 
 | # | เรื่อง | ทางเลือก | ต้องเคาะก่อน |
 |:--:|---|---|:---:|
-| D1 | ไลบรารี JPEG DCT | `jpeglib` · `jpegio` · binding libjpeg-turbo เอง — **ต้องเขียนกลับ byte-exact บน Windows ได้** | Phase 3.3 |
+| ~~D1~~ | ~~ไลบรารี JPEG DCT~~ | **เคาะแล้ว: `jpeglib` 1.0.2 + libjpeg 6b** — spike ยืนยันว่า entropy data เหมือนเดิมทุก byte · ต่างแค่ header 3 จุด (APP0 ซ้ำ · component id ใน SOF/SOS) จึงประกอบไฟล์เองจาก header เดิม | ✔ |
 | D2 | ไลบรารี ML-KEM-768 | `cryptography` (ถ้ารองรับ) · `liboqs-python` — **ห้ามเขียนเอง** | Phase 7.2 |
 | D3 | ไลบรารี ML-DSA-65 | `liboqs-python` · ตัด `AUTH_PQ_EXPLICIT` ออกจาก Phase 1 | Phase 7.3 |
 | ~~D4~~ | ~~Python เวอร์ชันต่ำสุด~~ | **เคาะแล้ว: 3.11+** — ตั้งไว้ใน `pyproject.toml` แล้ว | ✔ |
@@ -913,8 +924,8 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 1. **ปิด Phase 0.2 ให้จบ** — รัน `pip install -e ".[gui,analyzer,dev]"` บนเครื่องจริง แล้ว `nox`
    ต้องผ่านครบ · แก้สิ่งที่แดง · สร้าง lockfile
    (ยังเหลือข้อนี้เพราะเครื่องที่ใช้สร้างไฟล์เข้า PyPI ไม่ได้ จึงยังไม่ได้รัน ruff/mypy/nox จริง)
-2. เคาะ **D1** (ไลบรารี JPEG) แล้วลุย **Phase 3** — `test_jpeg_roundtrip_is_byte_exact` เป็นตัวบล็อกทุกอย่างที่เกี่ยวกับ JPEG
-3. **Phase 5** (`coder/stc.py`) ทำขนานกับ Phase 3 ได้ เพราะขึ้นกับ `domain` ที่เสร็จแล้วอย่างเดียว
-4. เคาะ **D2/D3** (ไลบรารี ML-KEM/ML-DSA) ก่อนถึง Phase 7
+2. **Phase 5** (`coder/stc.py`) — ขึ้นกับ `domain` อย่างเดียว เป็นตัวถัดไปในสายหลัก
+3. **Phase 6** (`cost/`) ต่อจาก 5 แล้ว Phase 8 จะประกอบทั้งหมดเข้าด้วยกันได้
+4. เคาะ **D2/D3** (ไลบรารี ML-KEM/ML-DSA) ก่อนถึง Phase 7 · **D5** (STC เป็น C หรือ numpy) ก่อน Phase 5.2
 
 > **ก่อนเริ่มเขียนโค้ดจริง แนะนำให้คัดลอกโฟลเดอร์ทั้งชุดเก็บไว้เป็นจุดย้อนกลับ** — โปรเจกต์นี้ไม่มีระบบกู้คืนอัตโนมัติ งานที่หายไปแล้วหายเลย

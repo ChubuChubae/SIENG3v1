@@ -2092,7 +2092,7 @@ docker compose -f docker/compose.yaml build analyzer
 | `src/gui/**` | `ui/gui/**` | ย้าย + แก้ import |
 | `src/cli/{analyzer_cmd,stego_cmd}.py` | `ui/cli/{analyze,embed,extract}.py` | ย้าย + เปลี่ยนเป็น typer |
 | `src/templates/*.yaml` | `pipeline/yaml/templates/*.yaml` | ย้าย |
-| `tests/lsbpp_surface_analysis.py` | `research/notebooks/lsbpp_surface.ipynb` | ย้าย (ไม่ใช่ test จริง) |
+| `tests/lsbpp_surface_analysis.py` | **ลบแล้ว** — วิเคราะห์ surface ของ LSB-PP ซึ่ง Phase 1 ไม่มีโค้ดรองรับ | ลบ |
 | `requirements.txt` | `pyproject.toml` + lockfile | เขียนใหม่ (แก้ปัญหา UTF-16) |
 | `docker/Dockerfile` | `docker/Dockerfile.analyzer` | เปลี่ยนชื่อ + เพิ่ม `.research` |
 

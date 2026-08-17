@@ -1,10 +1,18 @@
 """Turns files into numbers. The only layer that knows JPEG and PNG differ.
 
-Phase 1 supports .jpg and .png only (PROJECT_STRUCTURE.md 1.6).
+Phase 1 supports .jpg and .png only (PROJECT_STRUCTURE.md 1.6). Anything else is refused
+by name, never guessed at and never quietly handled by a weaker method.
 """
 
-# TODO(skeleton): from sieng.carrier.base import Carrier
-# TODO(skeleton): from sieng.carrier.detect import open_carrier, sniff
-# TODO(skeleton): from sieng.carrier.registry import CarrierRegistry
+from sieng.carrier.base import SNIFF_BYTES, Carrier
+from sieng.carrier.detect import open_carrier, read_head, sniff
+from sieng.carrier.registry import CarrierRegistry
 
-# TODO(skeleton): __all__ = ["Carrier", "CarrierRegistry", "open_carrier", "sniff"]
+__all__ = [
+    "SNIFF_BYTES",
+    "Carrier",
+    "CarrierRegistry",
+    "open_carrier",
+    "read_head",
+    "sniff",
+]

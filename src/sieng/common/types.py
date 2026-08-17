@@ -1,6 +1,10 @@
-"""Names that several layers share, kept here so nobody redefines them slightly differently."""
+"""Names that several layers share, kept here so nobody redefines them slightly differently.
 
-from typing import Literal
+The constants are Final so mypy narrows them to their literal type. Without that,
+`domain = SPATIAL_DOMAIN` in a carrier is just a str and fails the Literal in the base class.
+"""
+
+from typing import Final, Literal
 
 # What kind of numbers a carrier exposes. Phase 1 has these two only.
 Domain = Literal["dct", "spatial"]
@@ -13,8 +17,10 @@ SecurityTier = Literal["strong", "weak", "none"]
 # steganography literature reports, so results stay comparable.
 RateUnit = Literal["bpnzAC", "bpp", "bits"]
 
-DCT_DOMAIN = "dct"
-SPATIAL_DOMAIN = "spatial"
+DCT_DOMAIN: Final = "dct"
+SPATIAL_DOMAIN: Final = "spatial"
+
+STRONG_TIER: Final = "strong"
 
 # JPEG works on 8x8 blocks. The DC coefficient sits at index (0, 0) of each block.
-BLOCK_SIZE = 8
+BLOCK_SIZE: Final = 8

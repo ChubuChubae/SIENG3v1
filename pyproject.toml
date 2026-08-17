@@ -74,6 +74,12 @@ python_version = "3.11"
 # a silent mistake is expensive, plus whatever they import (PROJECT_STRUCTURE.md 9.3).
 strict = true
 
+# jpeglib ships no type stubs. Everything we rely on from it is checked at runtime by
+# tests/unit/test_jpeg.py instead.
+[[tool.mypy.overrides]]
+module = ["jpeglib.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

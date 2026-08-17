@@ -10,25 +10,33 @@ on purpose, because wiring is its whole job.
 from dataclasses import dataclass, field
 
 from sieng.app.settings import load_settings
+from sieng.carrier.image.jpeg import JpegCarrier
+from sieng.carrier.image.png import PngCarrier
+from sieng.carrier.registry import CarrierRegistry
 
 
 @dataclass
 class Container:
     """The assembled system, handed to the ui and cli.
 
-    Registries are plain dicts in Phase 0. Real classes arrive with 3.1, 6.1 and 8.1.
+    costs and engines are plain dicts until their registries arrive with 6.1 and 8.1.
     """
 
     settings: object
-    carriers: dict = field(default_factory=dict)
+    carriers: CarrierRegistry = field(default_factory=CarrierRegistry)
     costs: dict = field(default_factory=dict)
     engines: dict = field(default_factory=dict)
 
     def summary(self):
-        """One-line status, e.g. "carriers=2 costs=3 engines=2 workspace=/home/u/.sieng"."""
+        """One line status.
+
+        e.g. "carriers=1 (.png) costs=0 engines=0 workspace=/home/u/.sieng/workspace"
+        """
+        suffixes = ", ".join(self.carriers.suffixes()) or "none"
         return (
-            f"carriers={len(self.carriers)} costs={len(self.costs)} "
-            f"engines={len(self.engines)} workspace={self.settings.workspace_dir}"
+            f"carriers={len(self.carriers.all())} ({suffixes}) "
+            f"costs={len(self.costs)} engines={len(self.engines)} "
+            f"workspace={self.settings.workspace_dir}"
         )
 
 
@@ -36,11 +44,11 @@ def build_container(settings=None):
     """Assemble the system. Call once at startup and pass the container around."""
     container = Container(settings=settings or load_settings())
 
-    # Phase 3.1 - carriers: JpegCarrier, PngCarrier.
-    #   Only these two in Phase 1. Anything else must raise UnsupportedCarrierError,
-    #   never guess and never fall back to a weaker method.
-    # Phase 6.1 - costs: JUniwardCost (dct), UerdCost (dct baseline), HillCost (spatial).
-    # Phase 8.1 - engines: JUniwardStcEngine, HillStcEngine.
-    #   The ui builds its dropdown from this registry, so never hardcode engine names there.
+    container.carriers.register(JpegCarrier)
+    container.carriers.register(PngCarrier)
+
+    # Phase 6.1 - costs: JUniwardCost (dct), UerdCost (dct baseline), HillCost (spatial)
+    # Phase 8.1 - engines: JUniwardStcEngine, HillStcEngine
+    #   The ui builds its dropdown from these registries, so never hardcode names there.
 
     return container
