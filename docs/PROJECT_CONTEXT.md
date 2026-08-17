@@ -34,6 +34,8 @@
 | มีอยู่แล้ว | สภาพ |
 |---|---|
 | `src/sieng/app/` `ui/gui/bootstrap.py` `ui/cli/__main__.py` | **โค้ดจริงที่รันได้** จาก Phase 0.3 |
+| `src/sieng/common/` | Phase 2.1 — exception hierarchy 14 ตัว · `RedactingFilter` · `ProgressReporter.scoped()` |
+| `src/sieng/domain/` | Phase 2.2 — `Plane` (**freeze แล้ว**) · `build_changeable_mask` · `permute` · capacity |
 | `src/sieng/**/__init__.py` | docstring อธิบายหน้าที่ + ข้อห้ามของแต่ละชั้น · 5 ไฟล์มี `# TODO(skeleton):` บอกว่าต้อง export อะไรกลับมา |
 | `noxfile.py` `scripts/check.sh` `scripts/check.ps1` | ชุดตรวจ 15 session รันในเครื่อง |
 | `.gitignore` `.gitattributes` | ignore cache/build artifact · บังคับ line ending เป็น LF |
@@ -156,7 +158,12 @@ def load_settings(config_path: Path = None, **overrides):
 ```
 
 ห้ามใช้ `-> None`, `ClassVar`, `TYPE_CHECKING`, `dict[str, Any]` ในโค้ดทั่วไป
-`mypy --strict` บังคับเฉพาะ `crypto/` `coder/` `carrier/` `domain/` — ชั้นพวกนั้นค่อยใส่ให้ครบ
+
+**ข้อยกเว้น — ชั้นที่ `mypy --strict` ตรวจต้องใส่ annotation ให้ครบทุกตัว**
+`crypto/` `coder/` `carrier/` `domain/` และ **`common/`** เพราะ mypy ตามเข้าไปตรวจโมดูลที่ชั้นพวกนั้น import
+ถ้า `common/` ไม่มี annotation `disallow_untyped_calls` จะฟ้องทุกครั้งที่ `domain` เรียกมัน
+(`strict` ตั้งไว้ที่ระดับ global ใน `pyproject.toml` เพราะ **mypy ไม่รองรับ `strict` ใน per-module section**
+ขอบเขตที่ถูกตรวจจริงกำหนดด้วย path ที่ `noxfile.py` ส่งเข้าไป)
 
 #### Docstring
 
@@ -277,6 +284,7 @@ def test_with_overrides_leaves_the_original_alone():
 |---|---|---|
 | `nox -s lint types imports` | ruff · mypy --strict · import-linter | ทุกครั้งที่แก้โค้ดเสร็จ |
 | `nox -s unit` | unit test | ทุกครั้งที่แก้โค้ดเสร็จ |
+| `nox -s property` | hypothesis — คุณสมบัติที่ต้องจริงกับทุก input ไม่ใช่แค่ค่าที่เราคิดถึง | ทุกครั้งที่แก้ `domain` `coder` `carrier` |
 | `nox -s vectors` | **KAT ทั้งหมด** | **ต้องผ่านก่อนปิด module เสมอ ห้ามข้าม** |
 | `nox -s security` | negative test (MITM · rollback · concurrency · leak) | **ต้องผ่านก่อนปิด module เสมอ** |
 | `nox -s sast secrets deps` | bandit + semgrep · detect-secrets · pip-audit | เมื่อแตะ dependency หรือ crypto |
@@ -429,7 +437,10 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 **DoD**
 - `Plane` มี `values`, `changeable`, `meta` + `flatten()` / `unflatten()` / `n_changeable()`
 - `build_changeable_mask()` — DCT เลือกเฉพาะ non-zero AC (`skip_dc=True`) · spatial เลือกทั้งหมด
-- `permute(n, seed)` เป็น ChaCha20-based Fisher-Yates — ผลลัพธ์เหมือนกันทุกแพลตฟอร์ม
+- `permute(n, seed)` เป็น **argsort บน keystream ของ SHAKE256** — ผลลัพธ์เหมือนกันทุกแพลตฟอร์มและทุกเวอร์ชัน
+  (เปลี่ยนจากที่เคยเขียนไว้ว่า ChaCha20 + Fisher-Yates ด้วยเหตุผลสองข้อ: `domain` ห้ามพึ่ง crypto primitive
+  ตามกฎ import §2.1 และ **numpy ไม่รับประกันความเข้ากันได้ข้ามเวอร์ชันของ `Generator`** ซึ่งลำดับนี้ต้องคงที่
+  ตราบเท่าที่ยังมีไฟล์ stego อยู่ · algorithm อยู่ในโค้ดเราเอง ไม่ฝากไว้กับไลบรารี)
 - `bits_from_bpnzac()` / `bpnzac_from_bits()` / `max_payload_bits()`
 - **ห้าม import อะไรนอกจาก `common`**
 
@@ -861,7 +872,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 |:---:|---|:---:|
 | 0 | 0.1 Packaging · 0.2 Tooling & local checks · 0.3 Entry point | ☑ ☑ ☑ |
 | 1 | 1.1 THREAT_MODEL · 1.2 SESSION_PROTOCOL · 1.3 FORMAT_SPEC | ☑ ☑ ☑ |
-| 2 | 2.1 common · 2.2 domain | ☐ ☐ |
+| 2 | 2.1 common · 2.2 domain | ☑ ☑ |
 | 3 | 3.1 base · 3.2 detect · 3.3 jpeg · 3.4 png · 3.5 fixtures | ☐ ☐ ☐ ☐ ☐ |
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☐ ☐ ☐ |
@@ -902,8 +913,8 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 1. **ปิด Phase 0.2 ให้จบ** — รัน `pip install -e ".[gui,analyzer,dev]"` บนเครื่องจริง แล้ว `nox`
    ต้องผ่านครบ · แก้สิ่งที่แดง · สร้าง lockfile
    (ยังเหลือข้อนี้เพราะเครื่องที่ใช้สร้างไฟล์เข้า PyPI ไม่ได้ จึงยังไม่ได้รัน ruff/mypy/nox จริง)
-2. ทำ **Phase 2** (`common` + `domain`) — เริ่มได้เลย ไม่ขึ้นกับใคร · `plane.py` ต้อง freeze หลังจบเฟส
-3. เคาะ **D1** (ไลบรารี JPEG) แล้วลุย **Phase 3.3** ให้ `test_jpeg_roundtrip_is_byte_exact` ผ่าน
+2. เคาะ **D1** (ไลบรารี JPEG) แล้วลุย **Phase 3** — `test_jpeg_roundtrip_is_byte_exact` เป็นตัวบล็อกทุกอย่างที่เกี่ยวกับ JPEG
+3. **Phase 5** (`coder/stc.py`) ทำขนานกับ Phase 3 ได้ เพราะขึ้นกับ `domain` ที่เสร็จแล้วอย่างเดียว
 4. เคาะ **D2/D3** (ไลบรารี ML-KEM/ML-DSA) ก่อนถึง Phase 7
 
 > **ก่อนเริ่มเขียนโค้ดจริง แนะนำให้คัดลอกโฟลเดอร์ทั้งชุดเก็บไว้เป็นจุดย้อนกลับ** — โปรเจกต์นี้ไม่มีระบบกู้คืนอัตโนมัติ งานที่หายไปแล้วหายเลย

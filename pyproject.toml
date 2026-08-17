@@ -69,12 +69,9 @@ ignore = ["S101"]  # assert is how tests are written
 
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-
-# Layers where a silent mistake is expensive (PROJECT_STRUCTURE.md 9.3)
-[[tool.mypy.overrides]]
-module = ["sieng.crypto.*", "sieng.coder.*", "sieng.carrier.*", "sieng.domain.*"]
+# strict is set globally because mypy does not honour it in a per-module section.
+# What actually gets checked is decided by the paths noxfile passes: the layers where
+# a silent mistake is expensive, plus whatever they import (PROJECT_STRUCTURE.md 9.3).
 strict = true
 
 [tool.pytest.ini_options]

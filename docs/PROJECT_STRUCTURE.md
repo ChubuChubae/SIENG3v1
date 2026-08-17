@@ -956,7 +956,7 @@ def build_changeable_mask(values, domain: str, *, skip_dc: bool = True) -> np.nd
     """DCT: nonzero AC เท่านั้น (DC และ zero AC = wet) · spatial: ทั้งหมด"""
 
 def permute(n: int, seed: bytes) -> np.ndarray:
-    """ลำดับลับของการไล่ coefficient — ChaCha20-based Fisher-Yates"""
+    """ลำดับลับของการไล่ coefficient — argsort บน keystream ของ SHAKE256"""
 
 def inverse_permute(order: np.ndarray) -> np.ndarray: ...
 ```

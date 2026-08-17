@@ -15,7 +15,7 @@ import nox
 
 nox.options.reuse_existing_virtualenvs = True
 nox.options.stop_on_first_error = False
-nox.options.sessions = ["lint", "types", "imports", "unit", "vectors", "security"]
+nox.options.sessions = ["lint", "types", "imports", "unit", "property", "vectors", "security"]
 
 PYTHON = "3.11"
 SRC = "src/sieng"
@@ -29,7 +29,6 @@ STRICT_LAYERS = ["src/sieng/crypto", "src/sieng/coder", "src/sieng/carrier", "sr
 NO_TESTS_COLLECTED = 5
 EMPTY_UNTIL_PHASE = {
     "tests/vectors": "7.1 (KAT for HKDF / ML-KEM / GCM-SIV)",
-    "tests/property": "2.2 (domain roundtrip)",
     "tests/integration": "8.3 (full pipeline)",
     "tests/fuzz": "11.2 (fuzzing harness)",
 }
@@ -45,8 +44,6 @@ def run_pytest(session, path, *extra):
 
 
 # ---- code quality ----------------------------------------------------------
-
-
 @nox.session(python=PYTHON, venv_backend="none")
 def lint(session):
     """ruff: style and bug patterns."""
@@ -81,8 +78,6 @@ def imports(session):
 
 
 # ---- tests -----------------------------------------------------------------
-
-
 @nox.session(python=PYTHON, venv_backend="none")
 def unit(session):
     """Unit tests."""
@@ -101,9 +96,9 @@ def security(session):
     run_pytest(session, "tests/security")
 
 
-@nox.session(python=PYTHON, venv_backend="none")
+@nox.session(python=PYTHON, venv_backend="none", name="property")
 def property_tests(session):
-    """Property-based tests with hypothesis."""
+    """Properties that must hold for every input, not just the ones we thought of."""
     run_pytest(session, "tests/property")
 
 
@@ -120,8 +115,6 @@ def cov(session):
 
 
 # ---- security tooling ------------------------------------------------------
-
-
 @nox.session(python=PYTHON, venv_backend="none")
 def sast(session):
     """bandit and semgrep: find flaws in the source without running it."""
@@ -159,8 +152,6 @@ def image_scan(session):
 
 
 # ---- fuzzing ---------------------------------------------------------------
-
-
 @nox.session(python=PYTHON, venv_backend="none")
 def fuzz_smoke(session):
     """Short fuzz run per target, before closing a phase.

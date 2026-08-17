@@ -9,6 +9,8 @@ import os
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from sieng.common.errors import ConfigError
+
 # Rationale for these values: docs/PROJECT_STRUCTURE.md 4.1
 DEFAULT_STC_HEIGHT = 10  # STC constraint height, use 12 for numbers in the paper
 DEFAULT_PAYLOAD_RATE = 0.1  # bpnzAC
@@ -32,7 +34,7 @@ ENV_FIELDS = {
 }
 
 
-class SettingsError(ValueError):
+class SettingsError(ConfigError):
     """Bad config. The message must say what is wrong and what values are accepted."""
 
 
