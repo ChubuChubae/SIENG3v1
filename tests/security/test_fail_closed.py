@@ -13,11 +13,15 @@ Tests added later:
 """
 
 import importlib
+import logging
 from pathlib import Path
 
 import pytest
 
 from sieng.app.settings import Settings, SettingsError, load_settings
+from sieng.common.errors import CapacityError, DecryptError
+from sieng.common.logging import get_logger
+from sieng.domain.capacity import check_capacity
 from sieng.ui.cli.__main__ import COMMANDS, main
 
 pytestmark = pytest.mark.usefixtures("clean_env")
@@ -77,8 +81,41 @@ def test_missing_pyqt_raises_an_actionable_error():
 
 
 def test_settings_repr_has_no_credential_looking_fields():
-    """Phase 0 holds no keys yet. This is the placeholder for RedactingFilter in Phase 2.1."""
     text = repr(load_settings()).lower()
 
     assert "password" not in text
     assert "secret" not in text
+
+
+def test_no_secret_appears_in_logs(caplog):
+    """Every layer logs through get_logger, so a key can never reach a log file."""
+    logger = get_logger("sieng.security.leak")
+    aead_key = "a3" * 32
+    nonce = "b4" * 12
+
+    with caplog.at_level(logging.DEBUG):
+        logger.debug("sealing with aead_key=%s nonce=%s", aead_key, nonce)
+        logger.info("chain_key rotated to %s", "c5" * 32)
+        logger.warning("raw digest %s", "d6" * 32)
+
+    assert aead_key not in caplog.text
+    assert nonce not in caplog.text
+    assert "c5c5c5c5" not in caplog.text
+    assert "d6d6d6d6" not in caplog.text
+
+
+# ---- errors must not become an oracle --------------------------------------
+
+
+def test_decrypt_error_cannot_carry_a_reason():
+    """Wrong key, tampered data and wrong carrier must be indistinguishable to the caller."""
+    with pytest.raises(TypeError):
+        DecryptError("wrong key")
+
+    assert str(DecryptError()) == DecryptError.MESSAGE
+
+
+def test_capacity_check_refuses_before_any_work_happens():
+    """Fail closed: refuse an oversized payload instead of embedding a truncated one."""
+    with pytest.raises(CapacityError):
+        check_capacity(payload_bits=10**9, n_changeable=26000)
