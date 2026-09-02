@@ -45,6 +45,7 @@ component id ใน SOF และ SOS เปลี่ยนจากฐาน 1 
 `splice()` จึงประกอบไฟล์เอง: **header ของต้นฉบับทั้งดุ้น + entropy data ใหม่**
 และมี `verify_tables_match()` กันกรณีที่ libjpeg เขียน DQT/DHT ใหม่ตอนแก้ coefficient
 ซึ่งจะทำให้ entropy data ถอดด้วยตารางเดิมไม่ได้ — เจอแล้วต้องหยุด ไม่ใช่ปล่อยไฟล์ที่ถอดออกมาเป็นขยะ
+| `src/sieng/coder/` | Phase 5.1/5.3 — STC Viterbi (numpy) · Ĥ จาก SHAKE256 · simulator ทั้ง binary และ ternary bound |
 | `tests/fixtures/` | 10 ไฟล์ 431 KiB — png 4 แบบ · jpg QF 50/75/95 · progressive · ไฟล์ที่ต้องถูกปฏิเสธ · สร้างซ้ำได้ด้วย `make_fixtures.py` |
 | `tools/spike_jpeglib.py` | สคริปต์ตอบ D1 — ต้องรันบน Windows ก่อนเขียน Phase 3.3 |
 | `src/sieng/**/__init__.py` | docstring อธิบายหน้าที่ + ข้อห้ามของแต่ละชั้น · 5 ไฟล์มี `# TODO(skeleton):` บอกว่าต้อง export อะไรกลับมา |
@@ -590,8 +591,12 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 #### 5.3 `coder/simulator.py` ☐
 
 **ขึ้นกับ:** 5.1
-**DoD:** `simulate_embedding()` คืนความน่าจะเป็นการเปลี่ยนแปลงต่อตำแหน่ง · `lambda_from_payload()` binary search หา λ ที่ทำให้ ternary entropy = target
+**DoD:** `simulate_embedding()` คืนความน่าจะเป็นการเปลี่ยนแปลงต่อตำแหน่ง · bisection หา λ ที่ทำให้ entropy = target
 **ใช้ทำอะไร:** แยก "ขีดจำกัดทางทฤษฎี" ออกจาก "ประสิทธิภาพของ STC จริง" ตอนรายงานผล
+
+> **ต้องมีสองขีดจำกัด ไม่ใช่หนึ่ง** — `binary_bound()` คือเกณฑ์ที่ตรงกับ `stc.py` ซึ่งพลิก parity แล้วเลือกทิศที่ถูกกว่า
+> ส่วน `ternary_bound()` คือสิ่งที่ double-layered STC จะไปถึง ใช้ผิดตัวแล้ว coder ที่ดีจะดูแย่ทันที
+> `coding_loss()` ใช้ binary เสมอ
 
 ---
 
@@ -886,7 +891,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 | 2 | 2.1 common · 2.2 domain | ☑ ☑ |
 | 3 | 3.1 base · 3.2 detect · 3.3 jpeg · 3.4 png · 3.5 fixtures | ☑ ☑ ☑ ☑ ☑ |
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
-| 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☐ ☐ ☐ |
+| 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☐ ☐ ☐ ☐ ☐ ☐ |
 | 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☐ ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
@@ -908,7 +913,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 | D2 | ไลบรารี ML-KEM-768 | `cryptography` (ถ้ารองรับ) · `liboqs-python` — **ห้ามเขียนเอง** | Phase 7.2 |
 | D3 | ไลบรารี ML-DSA-65 | `liboqs-python` · ตัด `AUTH_PQ_EXPLICIT` ออกจาก Phase 1 | Phase 7.3 |
 | ~~D4~~ | ~~Python เวอร์ชันต่ำสุด~~ | **เคาะแล้ว: 3.11+** — ตั้งไว้ใน `pyproject.toml` แล้ว | ✔ |
-| D5 | STC kernel | C + numpy fallback · numpy อย่างเดียวไปก่อน | Phase 5.2 |
+| ~~D5~~ | ~~STC kernel~~ | **เคาะแล้ว: numpy ก่อน แล้ว C ใน 5.2** — numpy reference วัดได้ loss 1.10x ที่ h=12 ตรงกับงานวิจัย · C ต้องให้ผลตรงทุก bit | ✔ |
 | ~~D6~~ | ~~ขนาด header~~ | **เคาะแล้ว: 12 B** — binding tag ซ้ำซ้อนกับ AAD (`FORMAT_SPEC.md` §3.1) | ✔ |
 | ~~D7~~ | ~~`tests/` 13 ไฟล์ที่มีอยู่~~ | **เคาะแล้ว: ลบทิ้ง** — เหลือโครงโฟลเดอร์ 6 ชั้น เขียน test ใหม่ตอนทำแต่ละ module | ✔ |
 | ~~D8~~ | ~~`src/sieng/_deferred/`~~ | **เคาะแล้ว: ลบทิ้ง** | ✔ |
@@ -924,8 +929,10 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 1. **ปิด Phase 0.2 ให้จบ** — รัน `pip install -e ".[gui,analyzer,dev]"` บนเครื่องจริง แล้ว `nox`
    ต้องผ่านครบ · แก้สิ่งที่แดง · สร้าง lockfile
    (ยังเหลือข้อนี้เพราะเครื่องที่ใช้สร้างไฟล์เข้า PyPI ไม่ได้ จึงยังไม่ได้รัน ruff/mypy/nox จริง)
-2. **Phase 5** (`coder/stc.py`) — ขึ้นกับ `domain` อย่างเดียว เป็นตัวถัดไปในสายหลัก
-3. **Phase 6** (`cost/`) ต่อจาก 5 แล้ว Phase 8 จะประกอบทั้งหมดเข้าด้วยกันได้
+2. **Phase 6** (`cost/`) — ตัวถัดไปในสายหลัก · `JUniwardCost` คือของจริงที่ทำให้ STC มีประโยชน์
+3. **Phase 8** ประกอบ carrier + coder + cost + crypto เข้าด้วยกันเป็น `sieng embed`
+   (**Phase 5.2 C kernel เลื่อนได้** — numpy ทำ 512×512 ที่ h=10 ใน 0.5 วินาที ซึ่งพอสำหรับพัฒนา
+   จะเริ่มคุ้มตอนทำ research sweep หลายพันภาพใน Phase 10)
 4. เคาะ **D2/D3** (ไลบรารี ML-KEM/ML-DSA) ก่อนถึง Phase 7 · **D5** (STC เป็น C หรือ numpy) ก่อน Phase 5.2
 
 > **ก่อนเริ่มเขียนโค้ดจริง แนะนำให้คัดลอกโฟลเดอร์ทั้งชุดเก็บไว้เป็นจุดย้อนกลับ** — โปรเจกต์นี้ไม่มีระบบกู้คืนอัตโนมัติ งานที่หายไปแล้วหายเลย
