@@ -3,7 +3,7 @@
 > **อ่านไฟล์นี้ก่อนเริ่มงานทุกครั้ง** แล้วเข้างานต่อได้เลยโดยไม่ต้องไล่อ่านโค้ดทั้งโปรเจกต์
 > ไฟล์นี้ตอบ 4 คำถาม: ตอนนี้อยู่ที่ไหน · ตกลงกันไว้ว่าอะไร · ต้องทำอะไรต่อ · อะไรยังไม่ได้ตัดสินใจ
 > อ้างอิงสถาปัตยกรรม: `docs/PROJECT_STRUCTURE.md` (v1.2)
-> อัปเดตล่าสุด: 2026-09-07
+> อัปเดตล่าสุด: 2026-09-07 (Phase 8 สายหลักเสร็จ)
 
 ---
 
@@ -21,7 +21,10 @@ save → reload → extract` บน fixture จริงผ่านทั้ง
 **Phase 7 ครบทั้ง 7 module** — kdf · kem (X-Wing/HPKE) · auth · aead · header · ratchet · keystore
 พร้อม KAT จาก RFC 5869 และ RFC 8452 และเทสต์การโจมตีจริงใน `tests/security/`
 
-ยังไม่มีโค้ด: `pipeline` (Phase 8) · `analyzer` (Phase 4) · `coder/_native` (5.2)
+**`sieng embed` / `sieng extract` รันได้จริงจาก terminal แล้ว** — สายหลักครบตั้งแต่ไฟล์เข้าจนไฟล์ออก
+`session → embed → extract` ผ่าน crypto ทั้งชั้น
+
+ยังไม่มีโค้ด: `analyzer` (Phase 4) · `coder/_native` (5.2) · `ui/gui` (Phase 9) · `research` (Phase 10)
 โค้ดเดิม (GUI, analyzer, stego, crypto ~16,800 บรรทัด) ถูกลบโดยเจตนา เพื่อเริ่มเขียนใหม่ตามสัญญาของแต่ละชั้น
 
 **สาย spatial (PNG) ยังวิ่งไม่ครบวง** — cost/hill.py เสร็จแล้วแต่ `coder/` สมมติว่าเป็น DCT เสมอ ดู D13
@@ -32,10 +35,10 @@ save → reload → extract` บน fixture จริงผ่านทั้ง
 |---|---:|
 | แพ็กเกจ Python ใน `src/sieng` | 41 |
 | ไฟล์ `.py` ใน `src/sieng` | 45 ไฟล์ / 458 บรรทัด (Phase 0 เพิ่ม `app` กับ `ui` เข้ามา) |
-| ไฟล์ test | **793 test ผ่านหมด** (unit 636 · security 49+1 skip · vectors 59 · integration 39 · property 10) |
+| ไฟล์ test | **884 test ผ่านหมด** (unit 671 · integration 96 · vectors 59 · security 47+1 skip · property 10) |
 | ไฟล์ทรัพยากร | 88 (svg 43 · png 38 · qss 1 · yaml 5 · c 1) |
 | `pip install -e .` | ผ่านแล้ว (มี `src/sieng.egg-info/`) |
-| `nox` ชุดมาตรฐาน 8 session | **ผ่านหมด** — lint · types (50 ไฟล์ strict) · imports (5 contracts kept) · unit 636 · property 10 · integration 39 · vectors 59 · security 49+1 skip |
+| `nox` ชุดมาตรฐาน 8 session | **ผ่านหมด** — lint · types (50 ไฟล์ strict) · imports (5 contracts kept) · unit 671 · property 10 · integration 96 · vectors 59 · security 47+1 skip |
 | git | repo ใหม่ commit เดียว `ADD: Create Skeleton Project` |
 
 ### 1.3 อะไรมีอยู่ อะไรไม่มี
@@ -52,6 +55,9 @@ save → reload → extract` บน fixture จริงผ่านทั้ง
 | `src/sieng/crypto/` | Phase 7 ครบ — `kdf` `kem` `auth` `aead` `header.py` `envelope.py` `ratchet` `keystore.py` `zeroize.py` `lifecycle` |
 | `tests/vectors/` | KAT จริง — RFC 5869 (HKDF) 28 · RFC 8452 (GCM-SIV) 31 |
 | `tests/security/` | รันการโจมตีจริง — MITM · downgrade · replay · rollback · 2 process แย่ง counter |
+| `src/sieng/pipeline/` | Phase 8 สายหลัก — `context` `registry` `engines/juniward_stc` `embed` `extract` `session` |
+| `src/sieng/ui/cli/` | `sieng session` / `embed` / `extract` ทำงานจริง · รหัสผ่านผ่าน `getpass` เท่านั้น |
+| `tests/fake_carrier.py` | DCT carrier สำหรับเทสต์ pipeline โดยไม่ต้องมี jpeglib |
 
 **สิ่งที่ spike ค้นพบและกลายเป็นข้อบังคับของ `_jpeg_codec.py`**
 
@@ -1020,7 +1026,7 @@ byte-exact — คนละคำถาม ต้องมีทั้งคู�
 
 **Test:** `tests/integration/` — template ทุกไฟล์ต้องรันผ่าน
 
-#### 8.8 `ui/cli/` ◐ — `embed` / `extract` / `session` ทำงานแล้ว
+#### 8.8 `ui/cli/` ◐ — `embed` / `extract` / `session` ทำงานแล้ว ☑
 
 **ขึ้นกับ:** 8.5
 **DoD:** `sieng embed` / `extract` / `analyze` / `compare` / `pipeline run` ทำงานได้ · argparse → typer
