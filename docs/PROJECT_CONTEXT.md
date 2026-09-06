@@ -3,7 +3,7 @@
 > **อ่านไฟล์นี้ก่อนเริ่มงานทุกครั้ง** แล้วเข้างานต่อได้เลยโดยไม่ต้องไล่อ่านโค้ดทั้งโปรเจกต์
 > ไฟล์นี้ตอบ 4 คำถาม: ตอนนี้อยู่ที่ไหน · ตกลงกันไว้ว่าอะไร · ต้องทำอะไรต่อ · อะไรยังไม่ได้ตัดสินใจ
 > อ้างอิงสถาปัตยกรรม: `docs/PROJECT_STRUCTURE.md` (v1.2)
-> อัปเดตล่าสุด: 2026-08-12
+> อัปเดตล่าสุด: 2026-09-06
 
 ---
 
@@ -12,10 +12,16 @@
 ### 1.1 สรุปในหนึ่งย่อหน้า
 
 โฟลเดอร์โปรเจกต์คือ **`SIENG3v1`** (เปลี่ยนชื่อมาจาก `SIENG2_2`)
-สถานะคือ **skeleton ที่ Phase 0 เสร็จแล้ว** — โครงครบทั้ง 41 แพ็กเกจตาม `PROJECT_STRUCTURE.md`
-ชั้น `app` `ui` มีโค้ดจริงที่รันได้ ส่วนชั้น `carrier` `domain` `cost` `coder` `crypto` `pipeline` `analyzer`
-ยังมีแต่ `__init__.py` ที่บรรจุ docstring บอกหน้าที่และข้อห้ามของชั้นนั้น
+**Phase 0, 1, 2, 3, 5 (ยกเว้น 5.2), 6 เสร็จแล้ว** — `nox` เขียวครบทุก session
+
+จุดสำคัญที่สุดของสถานะตอนนี้: **สายหลักฝั่ง JPEG ต่อครบวงแล้วและพิสูจน์แล้วบนไฟล์จริง**
+`tests/integration/test_embed_roundtrip.py` รัน `load → planes → cost → permute → STC → apply →
+save → reload → extract` บน fixture จริงผ่านทั้งหมด ที่เหลือคือเอา crypto มาต่อหัวท้าย
+
+ยังไม่มีโค้ด: `crypto` (Phase 7) · `pipeline` (Phase 8) · `analyzer` (Phase 4) · `coder/_native` (5.2)
 โค้ดเดิม (GUI, analyzer, stego, crypto ~16,800 บรรทัด) ถูกลบโดยเจตนา เพื่อเริ่มเขียนใหม่ตามสัญญาของแต่ละชั้น
+
+**สาย spatial (PNG) ยังวิ่งไม่ครบวง** — cost/hill.py เสร็จแล้วแต่ `coder/` สมมติว่าเป็น DCT เสมอ ดู D13
 
 ### 1.2 ตัวเลขจริง
 
@@ -23,10 +29,10 @@
 |---|---:|
 | แพ็กเกจ Python ใน `src/sieng` | 41 |
 | ไฟล์ `.py` ใน `src/sieng` | 45 ไฟล์ / 458 บรรทัด (Phase 0 เพิ่ม `app` กับ `ui` เข้ามา) |
-| ไฟล์ test | 13 ไฟล์ / 393 บรรทัด — **34 test ผ่านหมด** |
+| ไฟล์ test | **410 test ผ่านหมด** (unit 355 · integration 33 · property 10 · security 12) |
 | ไฟล์ทรัพยากร | 88 (svg 43 · png 38 · qss 1 · yaml 5 · c 1) |
 | `pip install -e .` | ผ่านแล้ว (มี `src/sieng.egg-info/`) |
-| `nox` ชุดมาตรฐาน 6 session | **ผ่านหมด** — lint · types · imports (4 contracts kept) · unit 86 · vectors · security 9+1 skip |
+| `nox` ชุดมาตรฐาน 8 session | **ผ่านหมด** — lint · types · imports (5 contracts kept) · unit 355 · property 10 · integration 33 · vectors · security 12+1 skip |
 | git | repo ใหม่ commit เดียว `ADD: Create Skeleton Project` |
 
 ### 1.3 อะไรมีอยู่ อะไรไม่มี
@@ -37,6 +43,9 @@
 | `src/sieng/common/` | Phase 2.1 — exception hierarchy 14 ตัว · `RedactingFilter` · `ProgressReporter.scoped()` |
 | `src/sieng/domain/` | Phase 2.2 — `Plane` (**freeze แล้ว**) · `build_changeable_mask` · `permute` · capacity |
 | `src/sieng/carrier/` | Phase 3 ครบ — `Carrier` ABC · `CarrierRegistry` · `sniff` จาก magic · **`PngCarrier` และ `JpegCarrier` byte-exact** |
+| `src/sieng/coder/` | Phase 5.1 + 5.3 — `build_h_hat` · STC Viterbi embed/extract · `simulator` (binary + ternary bound) · **ยังไม่มี 5.2 C kernel** |
+| `src/sieng/cost/` | Phase 6 ครบ 6 โมเดล — `juniward` `uerd` `si_uniward` (dct) · `hill` `legacy_texture` (spatial) · `wavelet.py` db8 · `_dct.py` |
+| `tests/integration/` | `test_cost_coder.py` (20) · `test_embed_roundtrip.py` (13) — **วงจร JPEG ครบวงพิสูจน์แล้ว** |
 
 **สิ่งที่ spike ค้นพบและกลายเป็นข้อบังคับของ `_jpeg_codec.py`**
 
@@ -54,8 +63,8 @@ component id ใน SOF และ SOS เปลี่ยนจากฐาน 1 
 | `src/sieng/ui/gui/assets/` | ไอคอน svg 43 + png 38 (ซ้ำกันเกือบทั้งหมด — ควรเหลือ svg) |
 | `src/sieng/ui/gui/styles/default.qss` | ธีมมืด ใช้ได้เลย |
 | `src/sieng/pipeline/yaml/templates/*.yaml` | 5 เทมเพลต — **อ้าง engine ที่ยังไม่มี และ 2 ไฟล์อ้าง mp3 ที่นอกสโคป** |
-| `src/sieng/coder/_native/stc_kernel.c` | ยังไม่ได้ตรวจว่าใช้ได้จริง |
-| `tests/` 13 ไฟล์ | 34 test ครอบโค้ด Phase 0 · โฟลเดอร์ `vectors` `property` `integration` `fuzz` ยังว่างรอเฟสของมัน |
+| `src/sieng/coder/_native/stc_kernel.c` | ยังไม่ได้ตรวจว่าใช้ได้จริง (Phase 5.2 เลื่อนอยู่) |
+| `tests/` | 410 test · `integration` และ `property` ใช้งานจริงแล้ว · `vectors` `fuzz` ยังว่างรอ Phase 7 / 11 |
 | `docs/` | `PROJECT_STRUCTURE.md` · **`THREAT_MODEL.md` · `SESSION_PROTOCOL.md` · `FORMAT_SPEC.md`** (Phase 1) · ไฟล์นี้ |
 | `research/` | `README.md`, `datasets/split.py`, `stats.py` |
 | `tools/` | `spike_jpeglib.py` — ตรวจว่า jpeglib ยังทำตัวตามที่ `_jpeg_codec.py` สมมติไว้ |
@@ -300,7 +309,7 @@ def test_with_overrides_leaves_the_original_alone():
 | `nox -s vectors` | **KAT ทั้งหมด** | **ต้องผ่านก่อนปิด module เสมอ ห้ามข้าม** |
 | `nox -s security` | negative test (MITM · rollback · concurrency · leak) | **ต้องผ่านก่อนปิด module เสมอ** |
 | `nox -s sast secrets deps` | bandit + semgrep · detect-secrets · pip-audit | เมื่อแตะ dependency หรือ crypto |
-| `nox -s integration` | pipeline ครบวงจร + template yaml | ก่อนปิด phase |
+| `nox -s integration` | carrier + cost + coder ครบวงบนไฟล์จริง (Phase 8 จะเพิ่ม pipeline + yaml) | **อยู่ใน default แล้ว** |
 | `nox -s fuzz-smoke` | fuzz 60 วินาที/target | ก่อนปิด phase |
 | `nox -s sbom image-scan` | SBOM · trivy | ก่อน release |
 | `scripts/check.ps1` / `check.sh` | เรียกชุดตรวจมาตรฐานทั้งหมดในคำสั่งเดียว | ใช้เป็นค่าเริ่มต้น |

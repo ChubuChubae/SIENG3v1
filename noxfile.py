@@ -15,7 +15,19 @@ import nox
 
 nox.options.reuse_existing_virtualenvs = True
 nox.options.stop_on_first_error = False
-nox.options.sessions = ["lint", "types", "imports", "unit", "property", "vectors", "security"]
+# integration is in this list on purpose. It was left out once and the whole folder went
+# unrun for two phases, which is exactly the mistake it exists to catch. It uses the 64x64
+# fixture for most cases so it stays quick enough to belong here.
+nox.options.sessions = [
+    "lint",
+    "types",
+    "imports",
+    "unit",
+    "property",
+    "integration",
+    "vectors",
+    "security",
+]
 
 PYTHON = "3.11"
 SRC = "src/sieng"
