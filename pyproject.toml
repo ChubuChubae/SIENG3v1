@@ -12,9 +12,12 @@ readme = "README.md"
 # Source of truth for dependencies. requirements.txt is generated to match this.
 dependencies = [
     "numpy>=2.0",
-    "scipy>=1.14",
     "pillow>=11.0",
-    "cryptography>=44.0",
+
+    # D2/D3 closed. 48.0.0 is the first release whose PyPI wheels carry ML-KEM and
+    # ML-DSA, because that is where OpenSSL 3.5 became enough. Anything earlier needs a
+    # build against AWS-LC or BoringSSL, which is not something to ask a user for.
+    "cryptography>=48.0",
     "PyYAML>=6.0",
     "networkx>=3.3",
     "cffi>=1.17",
@@ -23,11 +26,6 @@ dependencies = [
     # D1 - JPEG quantized DCT (carrier/image/jpeg.py, Phase 3.3).
     # Swap it out if test_jpeg_roundtrip_is_byte_exact fails.
     "jpeglib>=1.0",
-
-    # D2/D3 - ML-KEM-768 (FIPS 203) and ML-DSA-65 (FIPS 204). Never implement these yourself.
-    # Drop this line if the installed cryptography already ships ML-KEM.
-    # Also needs the liboqs C library, which some platforms build from source.
-    "liboqs-python>=0.10",
 ]
 
 [project.optional-dependencies]

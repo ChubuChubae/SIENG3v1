@@ -80,7 +80,7 @@ git commit -m "chore: ignore build artifacts and normalise line endings"
 | ไฟล์ | ทำอะไร |
 |---|---|
 | `README.md` | ใหม่ — `pyproject.toml` อ้างถึงแต่ไฟล์ไม่มี ทำให้ `pip install -e .` พังทันที |
-| `pyproject.toml` | เพิ่ม `jpeglib` · `liboqs-python` · `detect-secrets` · ปิด RUF001-003 (คอมเมนต์ไทย) · per-file-ignore ของ noxfile |
+| `pyproject.toml` | เพิ่ม `jpeglib` · `detect-secrets` · ปิด RUF001-003 (คอมเมนต์ไทย) · per-file-ignore ของ noxfile · ตัด `liboqs-python` และ `scipy` ออก |
 | `requirements.txt` | sync กับ pyproject · เพิ่ม `detect-secrets` แทน gitleaks |
 | `noxfile.py` | ใหม่ — 15 session · ชุด default = `lint types imports unit vectors security` |
 | `scripts/check.sh` · `check.ps1` | ใหม่ — เรียกชุดมาตรฐานในคำสั่งเดียว |
@@ -669,9 +669,20 @@ Matlab และ C++ ต้นฉบับอ่าน window เลื่อน
 **ไฟล์:** `x25519.py`, `mlkem768.py`, `hybrid.py`
 **ขึ้นกับ:** 7.1
 **DoD**
-- เลือกไลบรารี ML-KEM แล้ว (`cryptography` หรือ `liboqs-python`) — **ห้าม implement เอง**
+- ใช้ `cryptography>=48` — **ห้าม implement เอง** (D2 ปิดแล้ว)
 - `hybrid` ใส่ `ss_x25519 ‖ ss_mlkem ‖ ct ‖ pk` เข้า IKM ครบ (ML-KEM ไม่ committing โดยตัวมันเอง)
-**Test:** KAT ของ ML-KEM-768 · `test_hybrid_binds_ciphertext`
+- **ต้องเช็คตอน startup ว่า ML-KEM ใช้ได้จริงบน backend ที่ติดตั้ง** แล้วโยน error ที่อ่านรู้เรื่อง
+  ถ้าไม่มี — **ห้าม fallback ไป classical เด็ดขาด** (ทีมงาน `cryptography` ประกาศแล้วว่าจะไม่รับประกัน
+  ว่าทุก algorithm มีครบบนทุก backend อีกต่อไป)
+**Test:** KAT ของ ML-KEM-768 · `test_hybrid_binds_ciphertext` · `test_missing_mlkem_refuses_loudly`
+
+**API ที่จะใช้**
+```python
+from cryptography.hazmat.primitives.asymmetric import mlkem
+sk = mlkem.MLKEM768PrivateKey.generate()
+ss_sender, ct = sk.public_key().encapsulate()   # ct 1088 B, pk 1184 B
+ss_receiver = sk.decapsulate(ct)
+```
 
 #### 7.3 `crypto/auth/` ☐
 
@@ -681,6 +692,10 @@ Matlab และ C++ ต้นฉบับอ่าน window เลื่อน
 - `transcript.build()` มี length-prefix ทุกฟิลด์
 - `AUTH_IMPLICIT` ทำงานได้และ overhead เป็น 0 byte จริง
 - `AUTH_PQ_EXPLICIT` ใช้ Ed25519 + ML-DSA-65 — ต้องผ่านทั้งคู่จึงนับว่าถูก
+  (D3 ปิดแล้ว: `from cryptography.hazmat.primitives.asymmetric import mldsa` →
+  `mldsa.MLDSA65PrivateKey.generate()` · `.sign(msg)` · `.verify(sig, msg)`
+  **ขนาด: pk 1952 B · signature 3309 B** — ตัวเลขนี้คือเหตุผลที่ `AUTH_PQ_EXPLICIT`
+  ไม่มีทางใส่ลงในภาพ 512×512 ได้ ต้องไปทาง `ENVELOPE_EXTERNAL` เท่านั้น)
 - `TrustStore` บันทึกว่าเชื่อ identity นั้นเพราะอะไร (`fingerprint` / `qr` / `manual`) และ revoke ได้
 
 **Test:** `test_mitm_key_substitution_is_rejected` · `test_transcript_canonicalization` · `test_revoked_identity_is_refused`
@@ -942,8 +957,10 @@ Matlab และ C++ ต้นฉบับอ่าน window เลื่อน
 | # | เรื่อง | ทางเลือก | ต้องเคาะก่อน |
 |:--:|---|---|:---:|
 | ~~D1~~ | ~~ไลบรารี JPEG DCT~~ | **เคาะแล้ว: `jpeglib` 1.0.2 + libjpeg 6b** — spike ยืนยันว่า entropy data เหมือนเดิมทุก byte · ต่างแค่ header 3 จุด (APP0 ซ้ำ · component id ใน SOF/SOS) จึงประกอบไฟล์เองจาก header เดิม | ✔ |
-| D2 | ไลบรารี ML-KEM-768 | `cryptography` (ถ้ารองรับ) · `liboqs-python` — **ห้ามเขียนเอง** | Phase 7.2 |
-| D3 | ไลบรารี ML-DSA-65 | `liboqs-python` · ตัด `AUTH_PQ_EXPLICIT` ออกจาก Phase 1 | Phase 7.3 |
+| ~~D2~~ | ~~ไลบรารี ML-KEM-768~~ | **ปิดแล้ว → `cryptography>=48`** | — |
+| ~~D3~~ | ~~ไลบรารี ML-DSA-65~~ | **ปิดแล้ว → `cryptography>=48`** | — |
+| D14 | hybrid KEM: เขียน combiner เอง หรือใช้ X-Wing | `mlkem` + combiner ของเราเอง · `hpke.KEM.MLKEM768_X25519` (X-Wing) | Phase 7.2 |
+| D15 | AEAD ของ handshake | AES-256-GCM-SIV ของเราเอง · ยอมใช้ AES-256-GCM ที่ HPKE ให้ | Phase 7.2 |
 | ~~D4~~ | ~~Python เวอร์ชันต่ำสุด~~ | **เคาะแล้ว: 3.11+** — ตั้งไว้ใน `pyproject.toml` แล้ว | ✔ |
 | ~~D5~~ | ~~STC kernel~~ | **เคาะแล้ว: numpy ก่อน แล้ว C ใน 5.2** — numpy reference วัดได้ loss 1.10x ที่ h=12 ตรงกับงานวิจัย · C ต้องให้ผลตรงทุก bit | ✔ |
 | ~~D6~~ | ~~ขนาด header~~ | **เคาะแล้ว: 12 B** — binding tag ซ้ำซ้อนกับ AAD (`FORMAT_SPEC.md` §3.1) | ✔ |
@@ -965,8 +982,9 @@ Matlab และ C++ ต้นฉบับอ่าน window เลื่อน
 2. **Phase 8** ประกอบ carrier + coder + cost + crypto เข้าด้วยกันเป็น `sieng embed`
    — อย่าลืม `permute()` ก่อน coder (ดู DoD 8.5)
 3. **Phase 7** (crypto) เป็นตัวบล็อก 8.3 จริง ๆ · Phase 6 เสร็จแล้วทั้งหมด
+   D2/D3 ปิดแล้ว เหลือเคาะ **D14/D15** ก่อนเขียน 7.2
    (**Phase 5.2 C kernel เลื่อนได้** — numpy ทำ 512×512 ที่ h=10 ใน 0.5 วินาที ซึ่งพอสำหรับพัฒนา
    จะเริ่มคุ้มตอนทำ research sweep หลายพันภาพใน Phase 10)
-4. เคาะ **D2/D3** (ไลบรารี ML-KEM/ML-DSA) ก่อนถึง Phase 7 · **D5** (STC เป็น C หรือ numpy) ก่อน Phase 5.2
+4. เคาะ **D13** (coder รองรับ spatial) ก่อน Phase 8.4 · **D5** (STC เป็น C หรือ numpy) ก่อน Phase 5.2
 
 > **ก่อนเริ่มเขียนโค้ดจริง แนะนำให้คัดลอกโฟลเดอร์ทั้งชุดเก็บไว้เป็นจุดย้อนกลับ** — โปรเจกต์นี้ไม่มีระบบกู้คืนอัตโนมัติ งานที่หายไปแล้วหายเลย

@@ -131,14 +131,11 @@ Phase 1 ฝังได้เฉพาะ **`.jpg` และ `.png`** เท่�
 |---|---|---|---|:---:|
 | `PyQt6` | 6.11.x | GUI framework ทั้งหมด | `ui/gui` | `E` |
 | `numpy` | 2.4.x | array ทุกอย่าง: coefficient, cost map, mask | `domain`, `cost`, `coder` | `E` |
-| `scipy` | 1.17.x | convolution ของ wavelet filter bank | `cost` | `E` |
 | `pillow` | 12.x | อ่าน/เขียนภาพ spatial | `carrier/image` | `E` |
-| `opencv-python` | 4.13.x | Sobel gradient, image ops ของ LSB-PP | `cost/hill`, legacy | `E` |
-| `scikit-image` | 0.26.x | local entropy ของ LSB-PP | legacy | `E` |
-| `cryptography` | 47.x | X25519, HKDF-SHA256, AES-GCM-SIV, Argon2id | `crypto` | `E` |
+| `opencv-python` | 4.13.x | image ops ของ analyzer | `analyzer` | `E` |
+| `scikit-image` | 0.26.x | feature ของ analyzer | `analyzer` | `E` |
+| `cryptography` | **>=48** | X25519, HKDF-SHA256, AES-GCM-SIV, Argon2id **และ ML-KEM-768 + ML-DSA-65** | `crypto` | `E` |
 | **`jpeglib`** *(หรือ `jpegio`)* | TBD | **อ่าน/เขียน quantized DCT coefficient ตรง** | `carrier/image/jpeg` | `N` |
-| **`liboqs-python`** *(ถ้าจำเป็น)* | TBD | ML-KEM-768 — ใช้ต่อเมื่อ `cryptography` ยังไม่รองรับ | `crypto/kem` | `N` |
-| **`liboqs-python`** | TBD | **ML-DSA-65** (FIPS 204) สำหรับ identity signature ฝั่ง PQ | `crypto/auth` | `N` |
 | `portalocker` *(หรือ `filelock`)* | TBD | exclusive lock ของ ratchet state ข้าม process/OS | `crypto/ratchet` | `N` |
 | `atheris` | TBD | coverage-guided fuzzing ฝั่ง Python | `tests/fuzz` | `N` |
 | `pip-audit` + `cyclonedx-bom` | TBD | dependency vulnerability scan + SBOM | CI | `N` |
@@ -1019,7 +1016,7 @@ class JUniwardCost(CostModel):
 
 > **ข้อควรระวังเชิงความปลอดภัย:** `costs()` ต้องขึ้นกับ **cover เท่านั้น** ห้ามขึ้นกับ payload หรือคีย์ใดๆ ถ้า cost ขึ้นกับข้อมูลลับ การกระจายตัวของการเปลี่ยนแปลงจะรั่วข้อมูลออกมาเป็น side channel
 
-**พึ่งพา:** `domain`, `common`, `numpy`, `scipy`
+**พึ่งพา:** `domain`, `common`, `numpy` (ไม่ใช้ scipy — wavelet filter bank ทำด้วย numpy ล้วน)
 **ถูกพึ่งพาโดย:** `pipeline/engines`, `research`
 
 ---
@@ -1388,7 +1385,7 @@ def unwhiten(raw: bytes, k_hdr_session: bytes) -> bytes: ...
 | `zeroize.py` | `zeroize(buf: bytearray)`, `SecretBytes` (context manager) | Python ล้าง memory ได้ไม่สมบูรณ์ — บันทึกข้อจำกัดไว้ใน docstring | `N!` |
 | `session.py` | `Session.initiator()`, `Session.responder()`, `Session.from_password()` | รวม KEM + chain เข้าด้วยกัน | `N!` |
 
-**พึ่งพา:** `common`, `cryptography` (และ `liboqs` ถ้าจำเป็น)
+**พึ่งพา:** `common`, `cryptography` (>=48 · ML-KEM/ML-DSA อยู่ในตัวมันแล้ว · D2/D3 ปิดแล้ว)
 **ถูกพึ่งพาโดย:** `pipeline` เท่านั้น — GUI ห้ามแตะโดยตรง
 
 ---

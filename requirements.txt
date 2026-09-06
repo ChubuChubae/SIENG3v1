@@ -12,11 +12,12 @@
 
 # --- numbers and images ---
 numpy>=2.0                 # coefficients, cost maps and masks in every layer
-scipy>=1.14                # wavelet filter bank convolution (cost/)
 pillow>=11.0               # spatial image io (carrier/image/png.py)
 
 # --- cryptography ---
-cryptography>=44.0         # X25519, HKDF-SHA256, AES-256-GCM-SIV, Argon2id
+cryptography>=48.0         # X25519, HKDF-SHA256, AES-256-GCM-SIV, Argon2id,
+                           # and D2/D3: ML-KEM-768 + ML-DSA-65. 48.0.0 is the first
+                           # release whose wheels carry the post-quantum algorithms.
 
 # --- pipeline ---
 PyYAML>=6.0                # pipeline config (pipeline/yaml/)
@@ -38,14 +39,16 @@ jpeglib>=1.0               # direct access to quantized DCT coefficients
 #                          # third option: bind libjpeg-turbo yourself (not listed here)
 
 
-# == POST-QUANTUM == D2/D3, crypto/kem/ (7.2) and crypto/auth/ (7.3) =========
+# == POST-QUANTUM == D2/D3 closed, no separate package needed =================
 #
-# Never implement ML-KEM or ML-DSA yourself.
-# Check whether the installed cryptography version already ships ML-KEM. If it does,
-# drop the line below and use that instead, it is one less dependency.
-# liboqs-python also needs the liboqs C library, which some platforms build from source.
+# ML-KEM-768 (FIPS 203) and ML-DSA-65 (FIPS 204) both come from cryptography>=48.
+# liboqs-python is no longer a dependency.
 #
-liboqs-python>=0.10        # ML-KEM-768 (FIPS 203) and ML-DSA-65 (FIPS 204)
+#   from cryptography.hazmat.primitives.asymmetric import mlkem, mldsa
+#
+# The maintainers no longer guarantee every algorithm is present on every backend, so
+# crypto/ must check at startup that ML-KEM is actually available and say so plainly if
+# it is not. A missing algorithm must never fall back to a classical one.
 
 
 # == GUI == optional group [gui] =============================================
