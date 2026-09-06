@@ -1020,10 +1020,34 @@ byte-exact — คนละคำถาม ต้องมีทั้งคู�
 
 **Test:** `tests/integration/` — template ทุกไฟล์ต้องรันผ่าน
 
-#### 8.8 `ui/cli/` ☐
+#### 8.8 `ui/cli/` ◐ — `embed` / `extract` / `session` ทำงานแล้ว
 
 **ขึ้นกับ:** 8.5
 **DoD:** `sieng embed` / `extract` / `analyze` / `compare` / `pipeline run` ทำงานได้ · argparse → typer
+**ทำแล้ว:** `session new` · `embed` · `extract` — เหลือ `analyze` / `compare` (Phase 4.5)
+และ `pipeline` (8.7) ซึ่งยังคืน exit code 3
+**Test:** `tests/integration/test_cli.py` · `tests/unit/test_cli.py`
+
+**กฎสองข้อที่กำหนดรูปไฟล์นี้**
+
+1. **รหัสผ่านอ่านผ่าน `getpass` เท่านั้น ไม่มี `--password` และจะไม่มี**
+   argument ไปโผล่ทั้งใน shell history และใน process list ที่ผู้ใช้อื่นบนเครื่องเดียวกัน
+   อ่านได้ · และเครื่องมือที่มีตัวเลือกนี้จะถูกเอาไปใช้ในสคริปต์ แล้วรหัสผ่านก็ไปอยู่ในไฟล์
+   → มี `test_there_is_no_password_option` ตรวจว่าไม่มีจริง เพราะวันที่มีคนเติมเข้ามา
+   "เพื่อความสะดวก" คือวันที่คุณสมบัตินี้หายไป
+2. **`extract` ตอบเหมือนกันทุกกรณี** — exit code เดียว ข้อความเดียว ไม่ว่าไฟล์จะไม่มีอะไร
+   เป็นของ session อื่น รหัสผ่านผิด หรือถูกแก้ · ข้อความ**บอกความเป็นไปได้ทั้งหมด**
+   แต่**ไม่บอกว่าอันไหน** — อย่างแรกช่วยผู้ใช้ อย่างหลังช่วยผู้ตรวจ
+
+**เจอบั๊กจริงตอนรัน CLI ครั้งแรก: engine สร้าง `CarrierRegistry` ของตัวเอง**
+pipeline resolve engine ด้วย registry ตัวหนึ่ง แล้ว engine ไปเปิดไฟล์ด้วยอีกตัวหนึ่ง
+→ pipeline ผ่าน แต่ engine เปิดไม่ได้ และ error โผล่จากสองชั้นลึกกว่าโดยไม่มีร่องรอยว่าทำไม
+แก้โดยให้ `Engine.__init__(carriers)` เป็นส่วนหนึ่งของสัญญา และ pipeline ส่ง registry
+ที่ตัวเองใช้ลงไปเสมอ · ผลพลอยได้: เทสต์ integration ใช้ `JUniwardStcEngine` ตัวจริงได้เลย
+ไม่ต้อง subclass เพื่อยัด registry ปลอมอีกต่อไป
+
+**`session new` พิมพ์ shared secret ออกมาตรง ๆ** พร้อมข้อความว่าต้องส่งให้อีกฝั่งเอง
+เป็น placeholder ที่ซื่อสัตย์ — handshake เต็ม (7.2/7.3) มีโค้ดครบแล้วแต่ยังไม่มี UI
 
 ---
 
@@ -1152,7 +1176,7 @@ byte-exact — คนละคำถาม ต้องมีทั้งคู�
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
 | 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☑ ☑ ☑ ☑ ☑ |
-| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☑ ☐ ☑ ☐ ☐ ☐ |
+| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☑ ☐ ☑ ☐ ☐ ◐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |
 | 11 | 11.1 sandbox · 11.2 fuzz · 11.3 supply chain · 11.4 release | ☐ ☐ ☐ ☐ |

@@ -7,9 +7,16 @@ from pathlib import Path
 import pytest
 
 # Lets pytest run before pip install -e . After installing, this line does nothing.
-SRC = Path(__file__).resolve().parents[1] / "src"
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
 if SRC.is_dir() and str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+
+# So `from tests.fake_carrier import ...` works regardless of how pytest was invoked.
+# pytest usually adds the root itself, but only for some import modes, and a shared helper
+# that imports differently depending on the command line is a trap worth closing.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 @pytest.fixture

@@ -14,13 +14,16 @@ from sieng.pipeline.context import Cancelled, CancelToken, RunContext
 from sieng.pipeline.embed import run_embed
 from sieng.pipeline.extract import holds_a_message, run_extract
 from sieng.pipeline.registry import EngineRegistry
+from sieng.pipeline.session import create_session, join_session
 
 __all__ = [
     "CancelToken",
     "Cancelled",
     "EngineRegistry",
     "RunContext",
+    "create_session",
     "holds_a_message",
+    "join_session",
     "run_embed",
     "run_extract",
 ]

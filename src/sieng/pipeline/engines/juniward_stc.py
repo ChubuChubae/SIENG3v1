@@ -121,7 +121,10 @@ class JUniwardStcEngine(Engine):
         cost_model: JUniwardCost | None = None,
         max_skip: int = DEFAULT_MAX_SKIP,
     ) -> None:
-        self.carriers = carriers if carriers is not None else default_registry()
+        # The pipeline always passes its own registry. The fallback exists so an engine
+        # can be built in a test without assembling a container, and never so that the
+        # engine can open a file the pipeline did not agree it could open.
+        super().__init__(carriers if carriers is not None else default_registry())
         self.cost_model = cost_model if cost_model is not None else JUniwardCost()
         self.max_skip = max_skip
 

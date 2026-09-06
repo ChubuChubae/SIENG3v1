@@ -37,15 +37,6 @@ PAYLOAD = b"a message that has to survive the whole pipeline"
 ENGINE_ID = "juniward_stc"
 
 
-class FakeEngineForFake(JUniwardStcEngine):
-    """The real engine, pointed at the fake carrier so these run without jpeglib."""
-
-    def __init__(self):
-        registry = CarrierRegistry()
-        registry.register(FakeDctCarrier)
-        super().__init__(carriers=registry)
-
-
 class SpatialOnlyEngine(Engine):
     engine_id = "spatial_only"
     description = "For testing the domain check"
@@ -68,7 +59,10 @@ def registries():
     carriers = CarrierRegistry()
     carriers.register(FakeDctCarrier)
     engines = EngineRegistry()
-    engines.register(FakeEngineForFake)
+    # The real engine, unmodified. It opens files with the registry the pipeline hands it,
+    # which is how these run against the fake carrier without jpeglib and without the
+    # engine knowing anything about the substitution.
+    engines.register(JUniwardStcEngine)
     engines.register(SpatialOnlyEngine)
     engines.register(NeedsPrecoverEngine)
     return carriers, engines

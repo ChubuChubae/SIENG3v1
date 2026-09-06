@@ -126,15 +126,16 @@ name = "ui never holds raw keys"
 type = "forbidden"
 source_modules = ["sieng.ui"]
 forbidden_modules = ["sieng.crypto", "sieng.coder", "sieng.cost"]
-# The ui reaches these only through the composition root, whose whole job is to import
-# every implementation and hand back registries. The rule being enforced is that no ui
-# module imports them itself, so the edge into app is excluded and everything downstream
-# of it with it. A ui module importing crypto, coder or cost directly is still caught.
+# Direct imports only. The rule is that no ui module imports crypto, coder or cost
+# itself, so it cannot be handed a key to hold. The ui reaching them indirectly is not
+# only allowed, it is the design: the ui calls the pipeline and the pipeline calls crypto,
+# and it calls the composition root which imports every implementation on purpose.
 #
-# Listing the container's own outgoing edges instead stopped working at Phase 8: the
-# engines it registers pull in crypto and coder through pipeline, so the list would have
-# had to name every layer the pipeline touches and be updated on every wiring change.
-ignore_imports = ["sieng.ui.** -> sieng.app.**"]
+# Two earlier attempts listed the intermediate edges in ignore_imports instead. Both had
+# to grow every time the pipeline touched another layer, and the second one still failed
+# because the chain simply moved from app to pipeline. The contract was right each time
+# and the semantics were wrong: transitive is not what "the ui never holds raw keys" means.
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "torch stays out of product code"

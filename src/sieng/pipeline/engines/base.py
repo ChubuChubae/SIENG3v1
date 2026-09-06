@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
+from sieng.carrier.registry import CarrierRegistry
 from sieng.common.types import Domain
 from sieng.pipeline.context import RunContext
 
@@ -117,6 +118,16 @@ class Engine(ABC):
 
     # True when the engine needs the original uncompressed image as well as the cover.
     requires_precover: ClassVar[bool] = False
+
+    def __init__(self, carriers: CarrierRegistry | None = None) -> None:
+        """Take the carrier registry the pipeline resolved this engine against.
+
+        Every engine accepts it, and the pipeline always passes it, because an engine that
+        builds its own registry can disagree with the one the pipeline used. The pipeline
+        would then accept a file that the engine cannot open, and the error would come
+        from two layers down with no sign of why. That happened once; hence this argument.
+        """
+        self.carriers = carriers if carriers is not None else CarrierRegistry()
 
     @abstractmethod
     def embed(self, request: EmbedRequest, context: RunContext) -> EmbedResult:

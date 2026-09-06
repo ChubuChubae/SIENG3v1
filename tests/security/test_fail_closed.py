@@ -20,7 +20,7 @@ from sieng.app.settings import Settings, SettingsError, load_settings
 from sieng.common.errors import CapacityError, DecryptError
 from sieng.common.logging import get_logger
 from sieng.domain.capacity import check_capacity
-from sieng.ui.cli.__main__ import COMMANDS, main
+from sieng.ui.cli.__main__ import PENDING, main
 
 pytestmark = pytest.mark.usefixtures("clean_env")
 
@@ -51,8 +51,11 @@ def test_missing_config_file_does_not_fall_back_to_defaults(tmp_path):
 # ---- commands that cannot work must not exit 0 -----------------------------
 
 
-@pytest.mark.parametrize("command", sorted(COMMANDS))
+@pytest.mark.parametrize("command", sorted(PENDING))
 def test_unimplemented_command_signals_failure(command):
+    """Only the commands that still do nothing. The ones that work are exercised for real
+    in tests/integration/test_cli.py, and asserting non-zero for them here would mean
+    asserting that working commands fail."""
     assert main([command]) != 0
 
 

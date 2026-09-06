@@ -58,7 +58,7 @@ def run_embed(
         )
 
     context.logger.info("Embedding into %s with %s", request.cover.name, engine_id)
-    return engine_class().embed(request, context.scoped(0, 100, engine_id))
+    return engine_class(carriers).embed(request, context.scoped(0, 100, engine_id))
 
 
 def validate(request: EmbedRequest) -> None:

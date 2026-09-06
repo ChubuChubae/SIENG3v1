@@ -65,7 +65,7 @@ def run_extract(
 
     context.logger.info("Extracting from %s with %s", request.stego.name, engine_id)
     try:
-        return engine_class().extract(request, context.scoped(0, 100, engine_id))
+        return engine_class(carriers).extract(request, context.scoped(0, 100, engine_id))
     except TRANSPARENT:
         raise
     except (CarrierError, CryptoError, ValueError):
