@@ -666,12 +666,21 @@ Matlab และ C++ ต้นฉบับอ่าน window เลื่อน
 
 > ทุก module ใน phase นี้ต้องมี KAT และห้าม merge ถ้าไม่มี test vector
 
-#### 7.1 `crypto/kdf/` ☐
+#### 7.1 `crypto/kdf/` ☑
 
 **ไฟล์:** `hkdf.py`, `labels.py`, `argon2.py`
 **ขึ้นกับ:** 1.3, 2.1
 **DoD:** `extract` / `expand` / `derive` ตรง RFC 5869 · `labels.py` รวม domain separation string ทั้งหมดไว้ที่เดียวพร้อมเลขเวอร์ชัน · argon2 ตาม RFC 9106 (t=3, m=64 MiB, p=4)
-**Test:** KAT ของ HKDF-SHA256 ทุก vector
+**Test:** `tests/vectors/test_hkdf_kat.py` (28) · `tests/unit/test_crypto_kdf.py` (18)
+**ทำแล้ว:** RFC 5869 vector A.1/A.2/A.3 ผ่านครบ (A.3 salt+info ว่าง คือเคสที่ implementation พลาดบ่อย)
+· `length_prefixed()` กัน canonicalization · `counter_info()` / `stream_info()` ตาม FORMAT_SPEC 2.3 และ 3.3
+
+**⚠ ข้อบังคับที่ตกไปถึง 7.7 — เจอตอนเขียน test**
+output ของ Argon2 ขึ้นกับ cost parameter ดังนั้น key ที่ derive ที่ค่าหนึ่ง **verify ที่อีกค่าไม่ผ่าน**
+และมันหน้าตาเหมือน "รหัสผ่านผิด" ทุกประการ แยกไม่ออก
+→ **keystore กับ ratchet state ต้องเขียน `current_parameters()` ลงไฟล์ข้าง salt เสมอ**
+ไม่งั้นวันที่ขึ้น cost parameter ไฟล์เก่าทั้งหมดจะเปิดไม่ได้และไม่มีทางรู้ว่าเพราะอะไร
+(`argon2.PARAMETER_FIELDS` คือรายชื่อฟิลด์ที่ต้องเก็บ)
 
 #### 7.2 `crypto/kem/` ☐
 
@@ -949,7 +958,7 @@ ss_receiver = sk.decapsulate(ct)
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
-| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
+| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☐ ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |
