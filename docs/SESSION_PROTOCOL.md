@@ -117,13 +117,25 @@ identity ที่ถูก revoke แล้ว **สร้าง session ให
 ยืมแนวคิด auth mode ของ HPKE: เพิ่ม DH ระหว่าง **static key ของผู้ส่ง** กับ **static key ของผู้รับ** เข้าไปในการ derive
 
 ```
-dh_ephemeral = X25519(eph_sender_sk,    recipient.x25519_static_pk)
-dh_static    = X25519(static_sender_sk, recipient.x25519_static_pk)
-ss_mlkem     = ML-KEM-768.Encap(recipient.mlkem_static_pk)
+ss_hpke   = HPKE(X-Wing, HKDF-SHA256, AES-256-GCM)
+              .encrypt(random32, recipient.hybrid_static_pk, info = transcript)
+dh_static = X25519(static_sender_sk, recipient.x25519_static_pk)
 ```
 
 ผู้ที่ไม่มี `static_sender_sk` คำนวณ `dh_static` ไม่ได้ จึง derive session key ไม่ได้
 **ได้ sender authentication มาโดยไม่เสีย byte เพิ่มเลยแม้แต่ตัวเดียว**
+
+> **ทำไมไม่ใช้ auth mode ของ HPKE ตรง ๆ (D14)**
+> `cryptography` เปิด `Suite` ให้เฉพาะ **base mode** — ไม่มี auth mode ไม่มี PSK mode
+> และไม่มี `export()` เอกสารของมันเขียนไว้ตรง ๆ ว่า *"the sender is anonymous"*
+> จึงต้องทำ implicit authentication เองที่ชั้นบน ด้วย `dh_static` ที่ผสมเข้า HKDF
+> ผลลัพธ์เหมือนกันทุกประการและยังกิน 0 byte เท่าเดิม
+>
+> สิ่งที่ได้กลับมาจาก HPKE คือ **combiner ของ X-Wing ที่ผ่านการรีวิวแล้ว** แทนที่จะเขียนเอง
+> และ **transcript ถูกผูกเข้า key schedule ผ่าน `info`** — transcript ที่ถูกแก้ทำให้เปิด blob
+> ไม่ผ่านตั้งแต่ตรงนั้น ไม่ใช่ไป derive คีย์คนละตัวเงียบ ๆ แล้วไปพังทีหลังจนหาสาเหตุยาก
+>
+> ราคา: 1,168 byte แทน 1,120 byte — **แพงขึ้น 48 byte** ซึ่งไม่มีผลเพราะ envelope เป็น external
 
 ### 4.2 `AUTH_PQ_EXPLICIT` — ทางเลือก overhead 3,373 B
 

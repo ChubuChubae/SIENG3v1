@@ -29,10 +29,10 @@
 ### 2.1 แผนภาพรวม
 
 ```
-dh_ephemeral (32) ─┐
+ss_hpke      (32) ─┐   X-Wing ผ่าน HPKE
 dh_static    (32) ─┼─► HKDF ─► ss (32) ─┬─► HKDF ─► K_hdr_session (32)
-ss_mlkem     (32) ─┤   "kem"            │   "hdrkey"
-transcript        ─┘                    │
+transcript        ─┘   "kem"            │   "hdrkey"
+                                        │
                                         └─► HKDF ─► CK[0] (32)
                                             "chain"        │
                                                            ├─► HKDF ─► MK[n] (32) ─► expand ─┬─ K_aead   (32)
@@ -49,7 +49,7 @@ transcript        ─┘                    │
 
 | ค่าคงที่ | Label | ใช้กับ |
 |---|---|---|
-| `KEM_SUITE` | `sieng3/kem/x25519-mlkem768/v1` | derive `ss` |
+| `KEM_SUITE` | `sieng3/kem/xwing-hpke/v1` | derive `ss` |
 | `HEADER_KEY` | `sieng3/hdrkey/v1` | derive `K_hdr_session` จาก `ss` |
 | `CHAIN_INIT` | `sieng3/chain/v1` | derive `CK[0]` จาก `ss` |
 | `RATCHET_STEP` | `sieng3/ratchet/v1` | `CK[n]` → `CK[n+1]` |
@@ -64,8 +64,10 @@ transcript        ─┘                    │
 
 ```
 // --- ระดับ session ---------------------------------------------------------
+// ss_hpke มาจาก HPKE(X-Wing) ดู SESSION_PROTOCOL.md 4.1 — X-Wing รวม X25519 กับ ML-KEM
+// ให้แล้วในตัว จึงไม่มี dh_ephemeral กับ ss_mlkem แยกอีกต่อไป (D14)
 ss = HKDF(salt = "",
-          ikm  = LP(dh_ephemeral) || LP(dh_static) || LP(ss_mlkem) || LP(transcript),
+          ikm  = LP(ss_hpke) || LP(dh_static) || LP(transcript),
           info = KEM_SUITE,  len = 32)
 
 K_hdr_session = HKDF-Expand(ss, HEADER_KEY, 32)

@@ -28,7 +28,12 @@ SUITE_VERSION: Final = 1
 
 # Binds the shared secret to the exact KEM combination that produced it. A file made with
 # a different KEM cannot derive the same ss even from the same inputs.
-KEM_SUITE: Final = b"sieng3/kem/x25519-mlkem768/v1"
+#
+# Renamed when D14 chose X-Wing through HPKE over a hand written combiner. The rule in
+# FORMAT_SPEC.md 1 is that changing a derivation formula changes the suite, and the inputs
+# to ss changed from four fields to three, so the label had to change with it. Nothing had
+# been written with the old one.
+KEM_SUITE: Final = b"sieng3/kem/xwing-hpke/v1"
 
 # ss -> K_hdr_session. Session level on purpose: the header holds the counter, so the key
 # that decrypts the header cannot itself depend on the counter (FORMAT_SPEC.md 3.3).

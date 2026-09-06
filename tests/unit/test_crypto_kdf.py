@@ -38,7 +38,7 @@ def test_the_duplicate_check_actually_catches_one():
 def test_the_labels_are_the_ones_in_the_spec():
     """Pinned against FORMAT_SPEC.md 2.2. Changing any of these makes every stego file
     ever written unreadable, so a change has to be a deliberate edit to this test too."""
-    assert labels.KEM_SUITE == b"sieng3/kem/x25519-mlkem768/v1"
+    assert labels.KEM_SUITE == b"sieng3/kem/xwing-hpke/v1"
     assert labels.HEADER_KEY == b"sieng3/hdrkey/v1"
     assert labels.CHAIN_INIT == b"sieng3/chain/v1"
     assert labels.RATCHET_STEP == b"sieng3/ratchet/v1"

@@ -682,7 +682,7 @@ output ของ Argon2 ขึ้นกับ cost parameter ดังนั้�
 ไม่งั้นวันที่ขึ้น cost parameter ไฟล์เก่าทั้งหมดจะเปิดไม่ได้และไม่มีทางรู้ว่าเพราะอะไร
 (`argon2.PARAMETER_FIELDS` คือรายชื่อฟิลด์ที่ต้องเก็บ)
 
-#### 7.2 `crypto/kem/` ☐
+#### 7.2 `crypto/kem/` ☑
 
 **ไฟล์:** `x25519.py`, `mlkem768.py`, `hybrid.py`
 **ขึ้นกับ:** 7.1
@@ -692,7 +692,27 @@ output ของ Argon2 ขึ้นกับ cost parameter ดังนั้�
 - **ต้องเช็คตอน startup ว่า ML-KEM ใช้ได้จริงบน backend ที่ติดตั้ง** แล้วโยน error ที่อ่านรู้เรื่อง
   ถ้าไม่มี — **ห้าม fallback ไป classical เด็ดขาด** (ทีมงาน `cryptography` ประกาศแล้วว่าจะไม่รับประกัน
   ว่าทุก algorithm มีครบบนทุก backend อีกต่อไป)
-**Test:** KAT ของ ML-KEM-768 · `test_hybrid_binds_ciphertext` · `test_missing_mlkem_refuses_loudly`
+**Test:** `tests/unit/test_crypto_kem.py` (36)
+
+**ทำแล้ว — D14 เปลี่ยนรูปไฟล์นี้ไปมาก**
+`hybrid.py` ไม่ได้เขียน combiner เองแล้ว ใช้ **X-Wing ผ่าน HPKE** ห่อ session secret 32 byte
+สิ่งที่เคยเป็นความรับผิดชอบของเราแล้วหายไป: combiner · การผูก transcript · การกัน ML-KEM ไม่ committing
+
+| ค่า | ขนาด | มาจาก |
+|---|---:|---|
+| `SEALED_BYTES` | 1,168 B | enc 1,120 + secret 32 + tag 16 |
+| `PUBLIC_BYTES` | 1,216 B | ML-KEM 1,184 + X25519 32 |
+| `envelope_overhead()` | 2,384 B | AUTH_IMPLICIT (ไม่มีลายเซ็น) |
+
+**ข้อจำกัดที่เจอตอน implement:** `MLKEM768X25519PublicKey` ของ `cryptography` **ไม่มี method ใด ๆ เลย**
+(ตรวจด้วย `dir()` แล้ว — public key ว่างเปล่า, private key มีแค่ `public_key()`)
+serialize ตัวมันเองไม่ได้ จึงต้องเก็บสอง component แยกแล้วประกอบใหม่ฝั่งผู้รับ
+→ wire format เป็นของเรา: **ML-KEM 1,184 byte ก่อน แล้ว X25519 32 byte** ความยาวคงที่ทั้งคู่ ไม่ต้อง length prefix
+(ยืนยันแล้วว่าประกอบกลับจาก raw bytes แล้ว decrypt ผ่าน)
+
+**KAT ทำไม่ได้ และนี่คือเหตุผล** — HPKE สุ่ม ephemeral ใหม่ทุกครั้ง input เดิมไม่เคยให้ output เดิม
+จึงพิสูจน์ด้วย property แทน: ขนาดตรงตามที่ envelope budget ใช้ · คีย์ถูกเปิดได้ คีย์อื่นเปิดไม่ได้ ·
+transcript ที่ถูกแก้ถูกปฏิเสธ · ทุกความล้มเหลวหน้าตาเหมือนกัน
 
 **API ที่จะใช้**
 ```python
@@ -718,11 +738,24 @@ ss_receiver = sk.decapsulate(ct)
 
 **Test:** `test_mitm_key_substitution_is_rejected` · `test_transcript_canonicalization` · `test_revoked_identity_is_refused`
 
-#### 7.4 `crypto/aead/gcm_siv.py` ☐
+#### 7.4 `crypto/aead/gcm_siv.py` ☑
 
 **ขึ้นกับ:** 7.1
 **DoD:** `seal` / `open_` · **ทุกความล้มเหลวโยน `DecryptError` เดียว เวลาเท่ากัน**
-**Test:** KAT ของ AES-256-GCM-SIV · `test_error_is_constant_time`
+**Test:** `tests/vectors/test_gcm_siv_kat.py` (31) — RFC 8452 C.2 ครบ 6 vector
+(0 / 8 / 12 / 16 / 32 byte และเคสที่มี AAD) · `test_every_failure_raises_the_same_bare_error`
+
+**ทำแล้ว**
+- `seal` / `open_` / `sealed_length()` — ความยาวคำนวณล่วงหน้าได้เสมอ (plaintext + 16) จึงเช็ค
+  capacity ได้ก่อนเข้ารหัส ไม่ต้องเข้ารหัสก่อนแล้วค่อยรู้ว่าไม่พอ
+- `test_a_repeated_nonce_leaks_only_that_two_messages_were_equal` — พิสูจน์คุณสมบัติที่เป็นเหตุผล
+  ของการเลือก SIV: nonce ซ้ำเผยแค่ว่า plaintext สองอันเท่ากันหรือไม่ ไม่ใช่ล่มทั้งระบบแบบ GCM
+- key/nonce ขนาดผิดโยน `CryptoError` **ไม่ใช่** `DecryptError` เพราะเป็นบั๊กของเรา
+  ไม่ใช่การถอดรหัสล้มเหลว ถ้าปนกันบั๊กจริงจะถูกเข้าใจผิดว่าเป็นรหัสผ่านผิด
+
+**หมายเหตุเรื่อง "เวลาเท่ากัน"** — เช็คความยาว ciphertext ก่อนเช็ค tag ซึ่งวัดเวลาได้ในทางทฤษฎี
+แต่ความยาว ciphertext เป็นค่าสาธารณะอยู่แล้ว (ผู้โจมตีเป็นคนส่งมาเอง) จึงไม่มีอะไรลับรั่ว
+ส่วนที่เหลือเป็นงานของ `cryptography` ซึ่ง constant time อยู่แล้ว
 
 #### 7.5 `crypto/header.py` + `envelope.py` ☐
 
@@ -958,7 +991,7 @@ ss_receiver = sk.decapsulate(ct)
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
-| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☐ ☐ ☐ ☐ ☐ ☐ |
+| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☐ ☑ ☐ ☐ ☐ |
 | 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☐ ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |
@@ -977,8 +1010,8 @@ ss_receiver = sk.decapsulate(ct)
 | ~~D1~~ | ~~ไลบรารี JPEG DCT~~ | **เคาะแล้ว: `jpeglib` 1.0.2 + libjpeg 6b** — spike ยืนยันว่า entropy data เหมือนเดิมทุก byte · ต่างแค่ header 3 จุด (APP0 ซ้ำ · component id ใน SOF/SOS) จึงประกอบไฟล์เองจาก header เดิม | ✔ |
 | ~~D2~~ | ~~ไลบรารี ML-KEM-768~~ | **ปิดแล้ว → `cryptography>=48`** | — |
 | ~~D3~~ | ~~ไลบรารี ML-DSA-65~~ | **ปิดแล้ว → `cryptography>=48`** | — |
-| D14 | hybrid KEM: เขียน combiner เอง หรือใช้ X-Wing | `mlkem` + combiner ของเราเอง · `hpke.KEM.MLKEM768_X25519` (X-Wing) | Phase 7.2 |
-| D15 | AEAD ของ handshake | AES-256-GCM-SIV ของเราเอง · ยอมใช้ AES-256-GCM ที่ HPKE ให้ | Phase 7.2 |
+| ~~D14~~ | ~~hybrid KEM~~ | **ปิดแล้ว → HPKE + X-Wing (`KEM.MLKEM768_X25519`) ห่อ session secret** | — |
+| ~~D15~~ | ~~AEAD ของ handshake~~ | **ปิดแล้ว → AES-256-GCM ที่ handshake · GCM-SIV คงเดิมที่ message layer** | — |
 | ~~D4~~ | ~~Python เวอร์ชันต่ำสุด~~ | **เคาะแล้ว: 3.11+** — ตั้งไว้ใน `pyproject.toml` แล้ว | ✔ |
 | ~~D5~~ | ~~STC kernel~~ | **เคาะแล้ว: numpy ก่อน แล้ว C ใน 5.2** — numpy reference วัดได้ loss 1.10x ที่ h=12 ตรงกับงานวิจัย · C ต้องให้ผลตรงทุก bit | ✔ |
 | ~~D6~~ | ~~ขนาด header~~ | **เคาะแล้ว: 12 B** — binding tag ซ้ำซ้อนกับ AAD (`FORMAT_SPEC.md` §3.1) | ✔ |
