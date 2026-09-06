@@ -20,7 +20,15 @@ from sieng.crypto.ratchet.chain import (
 )
 from sieng.crypto.ratchet.generation import RollbackError, machine_id
 from sieng.crypto.ratchet.rollback_guard import GuardReport, inspect, quarantine, require_forward
-from sieng.crypto.ratchet.session import create, mark_received, opened, receive, send, start
+from sieng.crypto.ratchet.session import (
+    create,
+    header_material,
+    mark_received,
+    opened,
+    receive,
+    send,
+    start,
+)
 from sieng.crypto.ratchet.state_store import RatchetState
 
 __all__ = [
@@ -34,6 +42,7 @@ __all__ = [
     "advance",
     "create",
     "derive_message_key",
+    "header_material",
     "header_session_key",
     "inspect",
     "machine_id",

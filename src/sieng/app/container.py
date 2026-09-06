@@ -19,6 +19,7 @@ from sieng.cost.juniward import JUniwardCost
 from sieng.cost.legacy_texture import LegacyTextureCost
 from sieng.cost.si_uniward import SiUniwardCost
 from sieng.cost.uerd import UerdCost
+from sieng.pipeline.engines.juniward_stc import JUniwardStcEngine
 from sieng.pipeline.registry import EngineRegistry
 
 
@@ -54,7 +55,7 @@ def build_container(settings=None):
     for model in (JUniwardCost, UerdCost, SiUniwardCost, HillCost, LegacyTextureCost):
         container.costs.register(model)
 
-    # Phase 8.3 - engines: JUniwardStcEngine, then HillStcEngine once D13 is settled.
-    #   The ui builds its dropdown from these registries, so never hardcode names there.
+    # HillStcEngine joins this once D13 settles how the coder handles spatial planes.
+    container.engines.register(JUniwardStcEngine)
 
     return container

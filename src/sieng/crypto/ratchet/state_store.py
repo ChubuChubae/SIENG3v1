@@ -65,6 +65,14 @@ class RatchetState:
 
     session_id: bytes
     chain_key: bytes
+
+    # K_hdr_session. Fixed for the whole session and stored because it cannot be recovered:
+    # it is derived from `ss`, and `ss` is destroyed once CK[0] and this key exist
+    # (FORMAT_SPEC.md 2.3). Without it on disk the receiver cannot unwhiten a header after
+    # a restart, and the header is the only way to learn the counter. Found by assembling
+    # the engine in 8.3, which is the first thing that needed both halves at once.
+    header_key: bytes = b""
+
     counter: int = 0
     generation: int = 0
     machine_id: bytes = b""
@@ -77,6 +85,8 @@ class RatchetState:
             raise CryptoError(f"Session id must be 4 bytes, got {len(self.session_id)}")
         if len(self.chain_key) != KEY_BYTES:
             raise CryptoError(f"Chain key must be {KEY_BYTES} bytes, got {len(self.chain_key)}")
+        if self.header_key and len(self.header_key) != KEY_BYTES:
+            raise CryptoError(f"Header key must be {KEY_BYTES} bytes, got {len(self.header_key)}")
         if not self.machine_id:
             self.machine_id = gen.machine_id()
 
@@ -107,6 +117,7 @@ class RatchetState:
         body += self.machine_id
         body += self.session_id
         body += self.chain_key
+        body += self.header_key.ljust(KEY_BYTES, b"\x00")
         body += self.counter.to_bytes(COUNTER_BYTES, "big")
         body += len(skipped).to_bytes(2, "big")
         for counter, key in skipped:
@@ -138,6 +149,7 @@ class RatchetState:
         machine = take(gen.MACHINE_ID_BYTES)
         session_id = take(4)
         chain_key = take(KEY_BYTES)
+        header_key = take(KEY_BYTES)
         counter = int.from_bytes(take(COUNTER_BYTES), "big")
 
         skipped: dict[int, bytes] = {}
@@ -152,6 +164,7 @@ class RatchetState:
         return cls(
             session_id=session_id,
             chain_key=chain_key,
+            header_key=header_key,
             counter=counter,
             generation=generation,
             machine_id=machine,

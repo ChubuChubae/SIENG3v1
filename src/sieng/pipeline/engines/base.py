@@ -85,6 +85,11 @@ class ExtractRequest:
     state_path: Path
     password: bytes
     component: int = 0
+
+    # Must match the height the sender used. The trellis is not self describing, so a
+    # different height reads the same coefficients as different bits.
+    constraint_height: int | None = None
+
     extras: dict[str, Any] = field(default_factory=dict)
 
 

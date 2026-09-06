@@ -37,6 +37,7 @@ from sieng.crypto.ratchet.chain import (
     SendChain,
     advance,
     derive_message_key,
+    header_session_key,
     root_chain_key,
 )
 from sieng.crypto.ratchet.state_store import RatchetState
@@ -45,14 +46,30 @@ DEFAULT_MAX_SKIP: Final = 1000
 
 
 def start(session_id: bytes, shared_secret: bytes, window: int = DEFAULT_MAX_SKIP) -> RatchetState:
-    """The state of a brand new session, before anything has been sent."""
+    """The state of a brand new session, before anything has been sent.
+
+    Both keys are derived here, and this is the last moment `ss` is needed. The header key
+    is stored alongside the chain key because it cannot be recovered afterwards, and the
+    receiver needs it to read a header before it knows anything else.
+    """
     return RatchetState(
         session_id=session_id,
         chain_key=root_chain_key(shared_secret),
+        header_key=header_session_key(shared_secret),
         counter=0,
         generation=0,
         window=window,
     )
+
+
+def header_material(path: Path, password: bytes) -> tuple[bytes, bytes]:
+    """The session id and header key, which do not change for the life of a session.
+
+    Read separately from `send`, because the header key is needed before a counter is
+    taken on the sending side and before any counter exists on the receiving side.
+    """
+    state = state_store.load(path, password)
+    return state.session_id, state.header_key
 
 
 def create(
@@ -167,6 +184,7 @@ __all__ = [
     "advance",
     "create",
     "derive_message_key",
+    "header_material",
     "mark_received",
     "opened",
     "receive",

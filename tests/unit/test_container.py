@@ -52,10 +52,18 @@ def test_each_carrier_domain_has_a_cost_model():
     assert container.costs.for_domain("spatial")
 
 
-def test_the_engine_registry_exists_but_holds_nothing_yet():
-    """The registry is wired as of 8.1; the engines that go in it arrive with 8.3. A red
-    result here means something half-finished got registered."""
-    assert build_container().engines.ids() == []
+def test_the_main_engine_is_registered():
+    """hill_stc joins this once D13 settles how the coder handles spatial planes."""
+    assert build_container().engines.ids() == ["juniward_stc"]
+
+
+def test_the_engine_is_offered_for_the_domain_it_can_handle():
+    """The ui builds its dropdown from this, so an engine listed under the wrong domain
+    would be offered for files it cannot open."""
+    container = build_container()
+
+    assert [e.engine_id for e in container.engines.for_domain("dct")] == ["juniward_stc"]
+    assert container.engines.for_domain("spatial") == []
 
 
 def test_summary_mentions_the_workspace():

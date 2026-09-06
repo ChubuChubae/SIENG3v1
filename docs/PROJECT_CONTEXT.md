@@ -916,11 +916,32 @@ magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct
 และ UI เอาไปทำ dropdown ได้ · `EmbedResult` มี `distortion` กับ `coding_loss` ติดมาด้วย
 เพื่อรายงานคู่กับ P_E ใน Phase 10 (loss สูง = trellis เป็นตัวปัญหา · loss ต่ำแต่ P_E แย่ = cost model)
 
-#### 8.3 `pipeline/engines/juniward_stc.py` — engine หลัก ☐
+#### 8.3 `pipeline/engines/juniward_stc.py` — engine หลัก ☑
 
 **ขึ้นกับ:** 3.3, 5.1, 6.2, 7.6, 8.2
 **DoD:** ประกอบชั้นล่างตามลำดับใน `PROJECT_STRUCTURE.md` §2.3 · **ไม่มี math ใหม่ในไฟล์นี้** · AAD = header ‖ `carrier.fingerprint()`
-**Test:** `tests/integration/test_stc_engine.py` · `test_ciphertext_from_other_carrier_is_rejected`
+**Test:** `tests/integration/test_engine_roundtrip.py` (23)
+
+**เจอช่องว่างจริงตอนประกอบ: state file ไม่ได้เก็บ `K_hdr_session`**
+`ss` ถูกทิ้งหลัง derive `CK[0]` เสร็จ (FORMAT_SPEC 2.3) แต่ `K_hdr_session` ก็มาจาก `ss`
+เหมือนกัน · ผู้รับต้องใช้มันแกะ header ทุกครั้ง และ header คือทางเดียวที่จะรู้ `ctr`
+→ **เพิ่ม `header_key` ลง `RatchetState`** และ `session.header_material()` สำหรับอ่านมัน
+เรื่องนี้ไม่มีทางเจอจากการเทสต์ชั้นใดชั้นหนึ่ง ต้องประกอบจริงถึงจะเห็น
+
+**ตัดสินใจเรื่อง layout: แบ่ง coefficient เป็นสองเขต ทั้งคู่เป็นความลับ**
+header พก `ctr` และ `ctr` เป็นตัวให้ `seed_sel` → ลำดับลับของ payload จึงรู้ไม่ได้จนกว่าจะอ่าน
+header เสร็จ · header เลยใช้ลำดับที่ derive จาก **`K_hdr_session`** ซึ่งผู้รับมีตั้งแต่ต้น
+- **แบ่งเป็นสัดส่วนคงที่ (1 ใน 8) ไม่ใช่ตามขนาด payload** — ผู้รับต้องหา header ให้เจอ
+  *ก่อน* รู้ความยาว payload ถ้าขนาดเขตขึ้นกับ payload ผู้รับจะต้องเดา
+- ถ้าวาง header ตามลำดับ scan ปกติ **header ทุกไฟล์ที่โปรแกรมนี้เคยเขียนจะอยู่ตำแหน่งเดียวกัน**
+  อ่านไม่ออกก็จริง แต่เป็นที่ให้ไปมองซ้ำ ๆ ได้
+
+**เพิ่ม `constraint_height` ใน `ExtractRequest`** — trellis ไม่ self-describing
+height ผิด = อ่าน coefficient เดิมได้บิตคนละชุด (มี test คุม)
+
+**`tests/fake_carrier.py`** — DCT carrier ที่เก็บ coefficient ตรง ๆ เพื่อให้เทสต์ engine
+รันได้แม้ไม่มี jpeglib · **ไม่ได้แทน** `test_embed_roundtrip.py` ที่พิสูจน์ว่า JPEG จริงออกมา
+byte-exact — คนละคำถาม ต้องมีทั้งคู่
 
 #### 8.4 `pipeline/engines/hill_stc.py` ☐
 
@@ -1104,7 +1125,7 @@ magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
 | 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☑ ☑ ☑ ☑ ☑ |
-| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☐ ☐ ☐ ☐ ☐ ☐ |
+| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☑ ☐ ☐ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |
 | 11 | 11.1 sandbox · 11.2 fuzz · 11.3 supply chain · 11.4 release | ☐ ☐ ☐ ☐ |
