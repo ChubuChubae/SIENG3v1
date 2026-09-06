@@ -1,8 +1,11 @@
 """The ratchet. One set of keys per message, and the old ones destroyed as it goes.
 
-chain.py holds the derivation, which is pure and has no idea a disk exists. The state file
-that survives a restart is a separate concern and a separate set of failure modes, and it
-lives in its own modules.
+Two halves with different failure modes, kept apart:
+
+    chain          the derivation. Pure, has no idea a disk exists, fully testable.
+    state file     the part that survives a restart, and therefore the part that can be
+                   restored from a backup, copied to another machine, or half written by
+                   a crash. session.py fixes the order those operations happen in.
 """
 
 from sieng.crypto.ratchet.chain import (
@@ -15,14 +18,31 @@ from sieng.crypto.ratchet.chain import (
     header_session_key,
     root_chain_key,
 )
+from sieng.crypto.ratchet.generation import RollbackError, machine_id
+from sieng.crypto.ratchet.rollback_guard import GuardReport, inspect, quarantine, require_forward
+from sieng.crypto.ratchet.session import create, mark_received, opened, receive, send, start
+from sieng.crypto.ratchet.state_store import RatchetState
 
 __all__ = [
     "MAX_COUNTER",
+    "GuardReport",
     "MessageKeys",
+    "RatchetState",
     "RecvChain",
+    "RollbackError",
     "SendChain",
     "advance",
+    "create",
     "derive_message_key",
     "header_session_key",
+    "inspect",
+    "machine_id",
+    "mark_received",
+    "opened",
+    "quarantine",
+    "receive",
+    "require_forward",
     "root_chain_key",
+    "send",
+    "start",
 ]

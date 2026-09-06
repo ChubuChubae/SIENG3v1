@@ -147,6 +147,25 @@ class SendChain:
         """The current chain key, for the state file. Nothing else may call this."""
         return self._chain_key
 
+    @classmethod
+    def resume(cls, session_id: bytes, chain_key: bytes, counter: int) -> "SendChain":
+        """Rebuild a chain from stored state, mid-session.
+
+        The constructor derives CK[0] from the shared secret, which is the wrong key for
+        a session already in progress. This takes the stored chain key as it is. Restoring
+        happens through here rather than by reaching into the object, so a change to the
+        internals cannot silently produce a chain that looks fine and derives wrong keys.
+        """
+        check_session_id(session_id)
+        check_counter(counter)
+        if len(chain_key) != KEY_BYTES:
+            raise CryptoError(f"Chain key must be {KEY_BYTES} bytes, got {len(chain_key)}")
+        chain = cls.__new__(cls)
+        chain.session_id = session_id
+        chain.counter = counter
+        chain._chain_key = chain_key
+        return chain
+
 
 class RecvChain:
     """The receiver's side. Ratchets forward to reach a counter, and remembers the gaps.
@@ -226,6 +245,36 @@ class RecvChain:
     def skipped_count(self) -> int:
         """How many messages are still outstanding, for the state file and for reporting."""
         return len(self._skipped)
+
+    def snapshot(self) -> tuple[bytes, int, dict[int, bytes], set[int]]:
+        """Everything the state file needs to rebuild this chain later."""
+        return self._chain_key, self.counter, dict(self._skipped), set(self._consumed)
+
+    @classmethod
+    def resume(
+        cls,
+        session_id: bytes,
+        chain_key: bytes,
+        counter: int,
+        skipped: dict[int, bytes],
+        consumed: set[int],
+        max_skip: int = 1000,
+        max_pool: int | None = None,
+    ) -> "RecvChain":
+        """Rebuild a chain from stored state, mid-session. See SendChain.resume."""
+        check_session_id(session_id)
+        check_counter(counter)
+        if len(chain_key) != KEY_BYTES:
+            raise CryptoError(f"Chain key must be {KEY_BYTES} bytes, got {len(chain_key)}")
+        chain = cls.__new__(cls)
+        chain.session_id = session_id
+        chain.counter = counter
+        chain.max_skip = max_skip
+        chain.max_pool = max_skip if max_pool is None else max_pool
+        chain._chain_key = chain_key
+        chain._skipped = dict(skipped)
+        chain._consumed = set(consumed)
+        return chain
 
     def _ratchet_to(self, counter: int) -> None:
         """Step forward to `counter`, keeping the message key of everything passed over."""

@@ -797,9 +797,9 @@ keystream ขึ้นกับ `ctr` แต่ `ctr` อยู่ในตั�
 พร้อม **negative control**: header ที่ไม่ผ่าน whitening ต้อง**สอบตก** monobit และ byte 0 ต้องเป็น `0x11` ทุกไฟล์
 เทสต์ที่ไม่มีวันแดงไม่ได้พิสูจน์อะไร
 
-#### 7.6 `crypto/ratchet/` ◐ — `chain.py` เสร็จ ที่เหลือยังไม่ได้ทำ
+#### 7.6 `crypto/ratchet/` ☑
 
-**ไฟล์:** ~~`chain.py`~~ ☑ · `session.py`, `state_store.py`, `state_lock.py`, `generation.py`, `rollback_guard.py` ☐
+**ไฟล์:** `chain.py` `session.py` `state_store.py` `state_lock.py` `generation.py` `rollback_guard.py`
 
 **`chain.py` ทำแล้ว** — `tests/unit/test_crypto_ratchet.py` (31)
 - `MessageKeys` ครบ 4 ส่วนจาก okm 108 byte ก้อนเดียว · มี test ยืนยันว่า slice ทั้งสี่
@@ -814,8 +814,31 @@ keystream ขึ้นกับ `ctr` แต่ `ctr` อยู่ในตั�
 ถ้าสองภาพได้ `seed_sel` เดียวกัน ผู้ตรวจที่มีทั้งสองภาพจะรู้ลำดับ scan ทันที
 selection channel หมดความหมาย และ **ไม่มีเทสต์อื่นในโปรเจกต์ที่จะแดง**
 
-**ยังเหลือ (ฝั่งไฟล์บนดิสก์ ความเสี่ยงคนละแบบ):** lock ครอบ read-modify-write ·
-temp→fsync→rename→fsync dir · generation guard · rollback detection
+**ฝั่งไฟล์บนดิสก์ ทำแล้ว** — `tests/unit/test_ratchet_state.py` (35) ·
+`tests/security/test_ratchet_state_attacks.py` (15)
+
+**`state_store.py` — consumed set เป็น window ไม่ใช่ bitmap ทั้งช่วง**
+counter space มี 2²⁴ ตัว bitmap เต็มจะกิน 2 MB · แต่ counter ที่ห่างเกิน `max_skip`
+ถูก `RecvChain` ปฏิเสธอยู่แล้วเพราะคีย์หายไปจาก pool จึงเก็บแค่ window ล่าสุด
+**1,000 counter = 125 byte** และ window เลื่อนตามโซ่ (`test_the_file_stays_small_with_a_full_window`)
+
+**ลำดับ commit อยู่ใน `session.send()` ที่เดียว** ไม่ให้ caller ประกอบเองได้
+`lock → load → guard → ratchet → เขียน state (temp→fsync→rename→fsync dir) → คืนคีย์`
+**เขียน state ก่อนคืนคีย์** — crash ระหว่างนั้นเสีย counter ไป 1 ตัวโดยไม่ได้ไฟล์
+สลับลำดับจะได้ไฟล์ stego ที่ state ไม่เคยบันทึก แล้วครั้งหน้าใช้ counter ซ้ำ
+
+**`SendChain.resume()` / `RecvChain.resume()` เพิ่มเข้ามา**
+ตอนแรกผมเขียน `session.py` ให้ยัดค่าเข้า field ด้วย `__new__` ตรง ๆ ซึ่งจะพังเงียบ ๆ
+ถ้า `chain.py` เปลี่ยนโครงสร้าง · ย้ายมาเป็น classmethod ใน `chain.py` แทน
+(คีย์ที่เก็บคือ `CK[counter]` ไม่ใช่ `CK[0]` — constructor ปกติจะ derive ผิดโดยไม่มีอะไรฟ้อง)
+
+**`test_two_processes_cannot_use_same_counter` ใช้ `fork` จริง** 4 process × 3 send
+ต้องได้ counter 0..11 ครบไม่ซ้ำ · ถ้า lock ครอบแค่ตอนเขียน (ไม่ครอบ load) เทสต์นี้จะแดง
+
+**`rollback_guard` ประกาศข้อจำกัดตรง ๆ** — `prevention_is_possible()` คืน `False` เสมอ
+และมี test เช็คว่า docstring มีคำว่า "does not prevent" · ใครที่เขียนไฟล์ state ได้
+ก็เอาไฟล์เก่ากลับมาวางได้ เราทำได้แค่ **รู้ตัวตอน send ครั้งถัดไป** ไม่ใช่ป้องกัน
+· ไฟล์ที่น่าสงสัยถูก `quarantine()` ไม่ใช่ลบทิ้ง — ผู้ใช้อาจต้องใช้มันหาสาเหตุ
 **ขึ้นกับ:** 7.1, 7.2, 7.4
 **DoD**
 - `SendChain.next_message_keys()` zeroize `CK[n]` ทันทีหลัง derive `CK[n+1]`
@@ -1059,7 +1082,7 @@ magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
-| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☑ ☑ ☑ ◐ ☑ |
+| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☑ ☑ ☑ ☑ ☑ |
 | 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☐ ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |

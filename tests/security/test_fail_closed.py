@@ -1,14 +1,13 @@
 """Fail closed: when something is wrong, stop instead of quietly carrying on.
 
-Phase 0 has no crypto, so MITM and rollback cannot be tested yet. What can be tested is
-how the existing layers behave when they meet something unexpected, which is the same
-habit the crypto layer will need.
+This file covers the layers outside crypto: bad configuration, an unreadable carrier, a
+payload that does not fit. The crypto attacks have their own files now that Phase 7 is
+finished, and they are listed below so nobody adds a second copy here.
 
 Tests added later:
   Phase 3.2  test_unsupported_carrier_is_refused
-  Phase 7.3  test_mitm_key_substitution_is_rejected
-  Phase 7.6  test_state_rollback_is_detected
-             test_two_processes_cannot_use_same_counter
+  (Phase 7 is complete: see test_auth_attacks.py, test_ratchet_state_attacks.py,
+   test_header_randomness.py)
 """
 
 import importlib
