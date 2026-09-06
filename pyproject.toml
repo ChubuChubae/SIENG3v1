@@ -115,10 +115,26 @@ forbidden_modules = [
 ]
 
 [[tool.importlinter.contracts]]
+name = "cost models score numbers and nothing else"
+type = "forbidden"
+source_modules = ["sieng.cost"]
+forbidden_modules = [
+    "sieng.ui", "sieng.pipeline", "sieng.carrier",
+    "sieng.crypto", "sieng.coder", "sieng.analyzer",
+]
+
+[[tool.importlinter.contracts]]
 name = "ui never holds raw keys"
 type = "forbidden"
 source_modules = ["sieng.ui"]
 forbidden_modules = ["sieng.crypto", "sieng.coder", "sieng.cost"]
+# The ui reaches these only through the composition root, which exists to import every
+# implementation and hand back registries. The rule being enforced is that no ui module
+# imports them itself, so the container's own wiring is not a violation of it.
+# Only edges that actually exist may be listed: an ignore that matches nothing is an
+# error. Add the coder line at Phase 8 and the crypto line at Phase 7, when the container
+# starts wiring those too.
+ignore_imports = ["sieng.app.container -> sieng.cost.*"]
 
 [[tool.importlinter.contracts]]
 name = "torch stays out of product code"

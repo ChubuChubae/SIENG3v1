@@ -93,6 +93,9 @@ class JpegCarrier(Carrier):
                 "component": COMPONENT_NAMES[index],
                 "component_index": index,
                 "block_size": BLOCK,
+                # The DCT cost models cannot score a coefficient without knowing what it
+                # was divided by, and this is the only layer that still knows.
+                "quant_table": self.quant_table_for(index),
             }
             planes.append(Plane(grid, mask, meta))
         return planes
@@ -153,6 +156,15 @@ class JpegCarrier(Carrier):
         """Non-zero AC count for one component, for reporting and for the analyzer."""
         self.require_loaded()
         return int(np.count_nonzero(build_changeable_mask(self.grids[component], DCT_DOMAIN)))
+
+    def quant_table_for(self, component: int) -> Array:
+        """The table this component was quantised with.
+
+        Luma has its own, and the chroma components share the second one. A file may ship
+        fewer tables than components, so the last one is reused rather than guessed at.
+        """
+        tables = self.quant_tables
+        return np.asarray(tables[min(component, len(tables) - 1)], dtype=np.float64)
 
     @property
     def quant_tables(self) -> Array:

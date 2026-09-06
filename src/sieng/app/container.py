@@ -13,18 +13,24 @@ from sieng.app.settings import load_settings
 from sieng.carrier.image.jpeg import JpegCarrier
 from sieng.carrier.image.png import PngCarrier
 from sieng.carrier.registry import CarrierRegistry
+from sieng.cost.base import CostRegistry
+from sieng.cost.hill import HillCost
+from sieng.cost.juniward import JUniwardCost
+from sieng.cost.legacy_texture import LegacyTextureCost
+from sieng.cost.si_uniward import SiUniwardCost
+from sieng.cost.uerd import UerdCost
 
 
 @dataclass
 class Container:
     """The assembled system, handed to the ui and cli.
 
-    costs and engines are plain dicts until their registries arrive with 6.1 and 8.1.
+    engines stays a plain dict until its registry arrives with 8.1.
     """
 
     settings: object
     carriers: CarrierRegistry = field(default_factory=CarrierRegistry)
-    costs: dict = field(default_factory=dict)
+    costs: CostRegistry = field(default_factory=CostRegistry)
     engines: dict = field(default_factory=dict)
 
     def summary(self):
@@ -35,7 +41,7 @@ class Container:
         suffixes = ", ".join(self.carriers.suffixes()) or "none"
         return (
             f"carriers={len(self.carriers.all())} ({suffixes}) "
-            f"costs={len(self.costs)} engines={len(self.engines)} "
+            f"costs={len(self.costs.names())} engines={len(self.engines)} "
             f"workspace={self.settings.workspace_dir}"
         )
 
@@ -47,7 +53,9 @@ def build_container(settings=None):
     container.carriers.register(JpegCarrier)
     container.carriers.register(PngCarrier)
 
-    # Phase 6.1 - costs: JUniwardCost (dct), UerdCost (dct baseline), HillCost (spatial)
+    for model in (JUniwardCost, UerdCost, SiUniwardCost, HillCost, LegacyTextureCost):
+        container.costs.register(model)
+
     # Phase 8.1 - engines: JUniwardStcEngine, HillStcEngine
     #   The ui builds its dropdown from these registries, so never hardcode names there.
 

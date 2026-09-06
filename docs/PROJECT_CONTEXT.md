@@ -602,12 +602,14 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 
 ### Phase 6 — Cost Models
 
-#### 6.1 `cost/base.py` + `wavelet.py` ☐
+#### 6.1 `cost/base.py` + `wavelet.py` ☑
 
 **ขึ้นกับ:** 2.2
-**DoD:** `CostModel` ABC · `daubechies8_filters()` + `dwt2_directional()` ที่ juniward และ si_uniward ใช้ร่วมกัน
+**DoD:** `CostModel` ABC · `daubechies8_filters()` + `residuals()` ที่ juniward และ si_uniward ใช้ร่วมกัน
+**ทำแล้ว:** `base.py` (CostModel + CostRegistry + กฎ wet/floor/±1023 รวมที่เดียว) · `wavelet.py` (db8 16 tap) · `_dct.py` (DCT basis + jpeg_rec)
+**ตรวจแล้ว:** lpdf รวม = √2 · hpdf รวม = 0 · ตั้งฉากกัน · conv2 'same' ตรง hand-summed · to_spatial กลับได้ exact
 
-#### 6.2 `cost/juniward.py` ☐
+#### 6.2 `cost/juniward.py` ☑
 
 **ขึ้นกับ:** 6.1, 3.3
 **DoD**
@@ -615,25 +617,36 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 - wet position เป็น `inf` ไม่ใช่ตัวเลขใหญ่
 - **ไม่ขึ้นกับ payload หรือคีย์เลย** (มี test ยืนยัน)
 
-**Test:** `tests/unit/test_cost.py` · `test_juniward_matches_reference` · `test_cost_independent_of_payload`
+**Test:** `tests/unit/test_cost.py` · `test_no_model_can_see_the_payload_or_a_key` · `test_unchangeable_positions_are_infinite`
 
-#### 6.3 `cost/uerd.py` (baseline) ☐
+**หมายเหตุ — ไม่มี reference cost map ให้เทียบ**
+โค้ดต้นฉบับที่ dde.binghamton.edu โหลดไม่ได้ จึงพิสูจน์ความถูกต้องด้วย 3 ทางแทน:
+1. **filter bank** — คุณสมบัติที่ wavelet ต้องมี (∑lpdf=√2, ∑hpdf=0, orthonormal)
+2. **geometry** — 16 tap → kernel 16×16 → window 23×23 ตรงตัวเลขในเปเปอร์
+3. **behaviour** — พื้นเรียบแพงกว่าพื้น texture อย่างน้อย 5 เท่า · การเปลี่ยน >90% ลงในส่วน texture
+
+นี่อ่อนกว่าการเทียบ cost map จริง — ถ้า P_E ใน Phase 10 ออกมาแย่ จุดนี้คือที่แรกที่ต้องสงสัย
+
+**off-by-one ของ reference**
+Matlab และ C++ ต้นฉบับอ่าน window เลื่อนไป 1 pixel (arXiv 2305.19776) · โค้ดนี้ default ตาม reference เพื่อให้ตัวเลขเทียบกับงานตีพิมพ์ได้ · เปิดตัวที่ถูกด้วย `JUniwardCost(use_reference_offset=False)` เท่านั้น
+
+#### 6.3 `cost/uerd.py` (baseline) ☑
 
 **ขึ้นกับ:** 6.1
 **DoD:** เร็วกว่า juniward ชัดเจน ใช้เป็น baseline ตอนวัดผล
 
-#### 6.4 `cost/hill.py` (spatial) ☐
+#### 6.4 `cost/hill.py` (spatial) ☑
 
 **ขึ้นกับ:** 6.1, 3.4
 **DoD:** ใช้กับ PNG ได้ · cost map สมเหตุสมผล (ขอบภาพต่ำ พื้นเรียบสูง)
 
-#### 6.5 `cost/si_uniward.py` ☐
+#### 6.5 `cost/si_uniward.py` ☑
 
 **ขึ้นกับ:** 6.2
 **DoD:** `requires_precover = True` · ถ้าไม่มี precover ต้องปฏิเสธชัดเจน ไม่ใช่ทำงานต่อแบบ degraded
 **หมายเหตุ:** ทำหลังสายหลักเสร็จได้ ไม่บล็อกใคร
 
-#### 6.6 `cost/legacy_texture.py` ☐
+#### 6.6 `cost/legacy_texture.py` ☑
 
 **ขึ้นกับ:** 6.1
 **DoD:** gradient + local entropy ของ LSB-PP เดิม เก็บไว้เพื่อเทียบผลเท่านั้น
@@ -736,10 +749,29 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 **ขึ้นกับ:** 3.4, 5.1, 6.4, 7.6, 8.2
 **DoD:** เหมือน 8.3 แต่ spatial domain
 
+**⚠ สาย spatial ยังวิ่งไม่ได้ — พบตอนทำ `tests/integration/test_embed_roundtrip.py`**
+ไม่ใช่ปัญหาของ `cost/hill.py` แต่เป็นเพราะ `coder/` ถูกเขียนโดยสมมติว่าเป็น DCT เสมอ 3 จุด:
+
+1. **dtype** — pixel เป็น `uint8` แต่ `stc.embed()` ทำ `values += direction` ที่เป็น `int16`
+   → `UFuncTypeError: Cannot cast ufunc 'add' output from int16 to uint8`
+   และถ้าปล่อยให้ cast ผ่าน pixel 255 จะวนเป็น 0 และ 0 วนเป็น 255
+2. **pixel ค่า 0 ถูกห้ามใช้** — `flip_costs()` ตั้ง `FORBIDDEN` ให้ `values == 0`
+   กฎนี้มีไว้เพราะ DCT ต้องรักษาเซต non-zero · ฝั่ง spatial `build_changeable_mask()`
+   คืน mask เป็น 1 ทั้งหมดไม่ว่า pixel มีค่าเท่าไร ดังนั้นพิกเซลดำจึงถูกตัดทิ้งฟรี ๆ
+3. **pixel ค่า 1 ถูกบังคับให้ขึ้นทางเดียว** — ด้วยเหตุผลเดียวกัน
+
+**ต้องตัดสินใจก่อนเริ่ม 8.4:** ให้ `flip_costs()` รับ domain เข้ามา · หรือแยกเป็นสองฟังก์ชัน ·
+หรือให้ carrier ส่ง plane เป็น `int16` ตั้งแต่ต้น (ดู D13)
+
 #### 8.5 `pipeline/embed.py` + `extract.py` ☐
 
 **ขึ้นกับ:** 8.3
 **DoD**
+- **ต้อง `permute()` ก่อนส่งเข้า coder เสมอ** — ไม่ใช่แค่เรื่องความลับ แต่เป็นเรื่องประสิทธิภาพ
+  STC ใช้ 1 bit ต่อ 1 ช่วงของ coefficient ที่ติดกัน · ถ้าเรียงแบบ raster ทั้งช่วงอาจตกอยู่ในพื้นเรียบ
+  ที่ทุกทางเลือกแพง แล้ว trellis ก็ต้องเลือกอันแพงอยู่ดี
+  วัดจริงที่ 0.2 bpnzAC, h=12: **raster loss 1.67 · permuted loss 1.09**
+  คุ้มกว่าเพิ่ม constraint height อีก 4 บิต (ดู `tests/integration/test_cost_coder.py`)
 - ลำดับตรงตาม §2.3 / §2.4
 - **เซฟ ratchet state ก่อนเขียนไฟล์ stego เสมอ** (ยอมข้าม counter ดีกว่าใช้ซ้ำ)
 - extract ถอด header ได้ก่อนรู้ `ctr` (ใช้ `K_hdr_session`)
@@ -892,7 +924,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 | 3 | 3.1 base · 3.2 detect · 3.3 jpeg · 3.4 png · 3.5 fixtures | ☑ ☑ ☑ ☑ ☑ |
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
-| 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☐ ☐ ☐ ☐ ☐ ☐ |
+| 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
 | 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☐ ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
@@ -921,6 +953,7 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 | D10 | assets png ซ้ำ svg 38 ไฟล์ | ลบ png · เก็บทั้งคู่ | Phase 9.3 |
 | D11 | License | MIT · Apache-2.0 · ไม่เผยแพร่ | Phase 11.4 |
 | D12 | แจก binary หรือให้ build เอง | เครื่องมือ steganography ที่แจก binary มักโดน antivirus flag | Phase 11.4 |
+| D13 | `coder/` รองรับ spatial ยังไง | `flip_costs(domain=...)` · แยกสองฟังก์ชัน · carrier คืน int16 ตั้งแต่ต้น | ก่อน Phase 8.4 |
 
 ---
 
@@ -929,8 +962,9 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 1. **ปิด Phase 0.2 ให้จบ** — รัน `pip install -e ".[gui,analyzer,dev]"` บนเครื่องจริง แล้ว `nox`
    ต้องผ่านครบ · แก้สิ่งที่แดง · สร้าง lockfile
    (ยังเหลือข้อนี้เพราะเครื่องที่ใช้สร้างไฟล์เข้า PyPI ไม่ได้ จึงยังไม่ได้รัน ruff/mypy/nox จริง)
-2. **Phase 6** (`cost/`) — ตัวถัดไปในสายหลัก · `JUniwardCost` คือของจริงที่ทำให้ STC มีประโยชน์
-3. **Phase 8** ประกอบ carrier + coder + cost + crypto เข้าด้วยกันเป็น `sieng embed`
+2. **Phase 8** ประกอบ carrier + coder + cost + crypto เข้าด้วยกันเป็น `sieng embed`
+   — อย่าลืม `permute()` ก่อน coder (ดู DoD 8.5)
+3. **Phase 7** (crypto) เป็นตัวบล็อก 8.3 จริง ๆ · Phase 6 เสร็จแล้วทั้งหมด
    (**Phase 5.2 C kernel เลื่อนได้** — numpy ทำ 512×512 ที่ h=10 ใน 0.5 วินาที ซึ่งพอสำหรับพัฒนา
    จะเริ่มคุ้มตอนทำ research sweep หลายพันภาพใน Phase 10)
 4. เคาะ **D2/D3** (ไลบรารี ML-KEM/ML-DSA) ก่อนถึง Phase 7 · **D5** (STC เป็น C หรือ numpy) ก่อน Phase 5.2

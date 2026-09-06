@@ -20,7 +20,15 @@ nox.options.sessions = ["lint", "types", "imports", "unit", "property", "vectors
 PYTHON = "3.11"
 SRC = "src/sieng"
 TARGETS = [SRC, "tests", "noxfile.py", "main.py"]
-STRICT_LAYERS = ["src/sieng/crypto", "src/sieng/coder", "src/sieng/carrier", "src/sieng/domain"]
+STRICT_LAYERS = [
+    "src/sieng/crypto",
+    "src/sieng/coder",
+    "src/sieng/carrier",
+    "src/sieng/domain",
+    # The contract only. The models themselves are numpy arithmetic end to end, where
+    # strict typing costs more noise than it catches.
+    "src/sieng/cost/base.py",
+]
 
 # pytest exits 5 when it collects nothing, which is normal while the project is being built.
 # Only the folders listed here may be empty, and each one still prints a warning.

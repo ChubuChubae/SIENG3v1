@@ -30,12 +30,31 @@ def test_phase_one_carriers_are_registered():
     assert container.carriers.suffixes() == [".jpe", ".jpeg", ".jpg", ".png"]
 
 
-def test_cost_and_engine_registries_are_still_empty():
-    """A red result here means something half-finished got registered."""
+def test_every_cost_model_is_registered():
+    """The ui and the research runner build their lists from this, so a model that is not
+    here does not exist as far as the rest of the program is concerned."""
     container = build_container()
 
-    assert container.costs == {}
-    assert container.engines == {}
+    assert container.costs.names() == [
+        "hill",
+        "juniward",
+        "legacy_texture",
+        "si_uniward",
+        "uerd",
+    ]
+
+
+def test_each_carrier_domain_has_a_cost_model():
+    """A carrier with nothing to score it by would fail only once a user picked it."""
+    container = build_container()
+
+    assert container.costs.for_domain("dct")
+    assert container.costs.for_domain("spatial")
+
+
+def test_the_engine_registry_is_still_empty():
+    """A red result here means something half-finished got registered. Engines are 8.1."""
+    assert build_container().engines == {}
 
 
 def test_summary_mentions_the_workspace():

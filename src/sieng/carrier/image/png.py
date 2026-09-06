@@ -207,7 +207,10 @@ class PngCarrier(Carrier):
     def planes(self) -> list[Plane]:
         self.require_loaded()
         mask = build_changeable_mask(self.pixels, SPATIAL_DOMAIN)
-        meta = {"colour_type": self.header.colour_type if self.header else 0}
+        colour_type = self.header.colour_type if self.header else 0
+        # Rows hold interleaved samples, so a cost model must know how many channels are
+        # woven together before it filters anything across a row.
+        meta = {"colour_type": colour_type, "channels": CHANNELS.get(colour_type, 1)}
         return [Plane(self.pixels, mask, meta)]
 
     def apply(self, planes: list[Plane]) -> None:
