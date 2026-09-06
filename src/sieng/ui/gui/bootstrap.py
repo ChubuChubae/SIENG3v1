@@ -29,12 +29,14 @@ def run(container):
     """
     try:
         from PyQt6.QtGui import QFont
-        from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow
+        from PyQt6.QtWidgets import QApplication
     except ImportError as error:
         raise GuiUnavailableError(
             'PyQt6 is not installed. Run: pip install -e ".[gui]" '
             "(or use the CLI instead: sieng --status)"
         ) from error
+
+    from sieng.ui.gui.main_window import MainWindow
 
     app = QApplication([])
     app.setFont(QFont(*DEFAULT_FONT))
@@ -43,17 +45,7 @@ def run(container):
     if stylesheet:
         app.setStyleSheet(stylesheet)
 
-    # Phase 9.1 replaces this with sieng.ui.gui.main_window.MainWindow
-    window = QMainWindow()
-    window.setWindowTitle("SIENG3")
-    window.resize(900, 600)
-    window.setCentralWidget(
-        QLabel(
-            "SIENG3 - structure is in place, no screens yet\n\n"
-            f"{container.summary()}\n\n"
-            "The real window arrives in Phase 9.1 (docs/PROJECT_CONTEXT.md)"
-        )
-    )
+    window = MainWindow(container)
     window.show()
 
     return app.exec()

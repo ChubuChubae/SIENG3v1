@@ -1,8 +1,8 @@
 """CLI, the target of the `sieng` console script declared in pyproject.toml.
 
-Three commands work: `session new`, `embed` and `extract`. The rest still report that they
-are not implemented and exit non-zero, because a caller trusts the exit code and a 0 would
-say the data was hidden when nothing happened.
+Four commands work: `gui`, `session`, `embed` and `extract`. The rest still report that
+they are not implemented and exit non-zero, because a caller trusts the exit code and a 0
+would say the data was hidden when nothing happened.
 
 Two rules shape this file more than anything else.
 
@@ -71,6 +71,8 @@ def build_parser():
     parser.add_argument("--status", action="store_true", help="print system status and exit")
     subcommands = parser.add_subparsers(dest="command", metavar="command")
 
+    subcommands.add_parser("gui", help="open the graphical interface")
+
     new_session = subcommands.add_parser("session", help="create a session")
     new_session.add_argument("state", type=Path, help="where to write the session state")
     new_session.add_argument("--window", type=int, default=1000, help="max messages skipped")
@@ -108,6 +110,22 @@ def read_password(confirm=False):
     if not password:
         raise ValueError("An empty password protects nothing")
     return password.encode()
+
+
+def run_gui(args, out=None):
+    """Open the window. Returns whatever Qt's event loop returns.
+
+    PyQt6 is an optional extra, so a missing one is a normal situation with a normal
+    message rather than a traceback about an import.
+    """
+    from sieng.app.container import build_container
+    from sieng.ui.gui.bootstrap import GuiUnavailableError, run
+
+    try:
+        return run(build_container())
+    except GuiUnavailableError as error:
+        print(error, file=sys.stderr)
+        return EXIT_USAGE
 
 
 def run_session(args, out=None):
@@ -208,6 +226,7 @@ def print_status(out=None):
 
 
 HANDLERS = {
+    "gui": run_gui,
     "session": run_session,
     "embed": run_embed_command,
     "extract": run_extract_command,
