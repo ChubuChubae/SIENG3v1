@@ -52,9 +52,10 @@ def test_each_carrier_domain_has_a_cost_model():
     assert container.costs.for_domain("spatial")
 
 
-def test_the_engine_registry_is_still_empty():
-    """A red result here means something half-finished got registered. Engines are 8.1."""
-    assert build_container().engines == {}
+def test_the_engine_registry_exists_but_holds_nothing_yet():
+    """The registry is wired as of 8.1; the engines that go in it arrive with 8.3. A red
+    result here means something half-finished got registered."""
+    assert build_container().engines.ids() == []
 
 
 def test_summary_mentions_the_workspace():

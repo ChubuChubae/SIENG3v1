@@ -891,15 +891,30 @@ magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct
 
 ### Phase 8 — Pipeline + Engines
 
-#### 8.1 `pipeline/context.py` + `registry.py` ☐
+#### 8.1 `pipeline/context.py` + `registry.py` ☑
 
 **ขึ้นกับ:** 2.1
 **DoD:** `RunContext(progress, logger, cancel_token)` · `EngineRegistry.resolve()` โยน `IncompatibleEngineError` ถ้า engine ใช้กับ domain นั้นไม่ได้ · `for_domain()` ให้ UI สร้าง dropdown
 
-#### 8.2 `pipeline/engines/base.py` ☐
+**Test:** `tests/unit/test_pipeline_context.py` (26)
+**ทำแล้ว**
+- `RunContext.step()` **รายงาน progress และเช็ค cancel พร้อมกัน** — สองอย่างนี้อยู่ที่จุดเดียวกัน
+  (ขอบระหว่าง phase) · step ที่รายงานแต่ไม่เช็คคือ step ที่หยุดไม่ได้
+- `CancelToken.check()` **โยน exception ไม่คืน bool** — caller ที่เมิน `False` ทำงานต่อได้
+  caller ที่เมิน exception ทำไม่ได้
+- `scoped()` แชร์ cancel token (ไม่ copy) — cancel ครั้งเดียวต้องหยุดทุกอย่าง
+- `resolve()` บอกด้วยว่า **engine ตัวไหนใช้ได้** ไม่ใช่แค่ปฏิเสธ · และ **ไม่มีการ fallback เงียบ ๆ**
+  งานวิจัยที่ได้ผลจาก engine คนละตัวกับที่สั่ง แย่กว่างานที่ error
+- `container.engines` เปลี่ยนจาก `dict` เป็น `EngineRegistry` แล้ว
+
+#### 8.2 `pipeline/engines/base.py` ☑
 
 **ขึ้นกับ:** 8.1
 **DoD:** `Engine` ABC · `EmbedRequest` / `EmbedResult` / `ExtractRequest` / `ExtractResult` เป็น dataclass
+
+**ทำแล้ว** — `supported_domains` เป็น ClassVar เพื่อให้ registry ตรวจได้**ก่อนเปิดไฟล์**
+และ UI เอาไปทำ dropdown ได้ · `EmbedResult` มี `distortion` กับ `coding_loss` ติดมาด้วย
+เพื่อรายงานคู่กับ P_E ใน Phase 10 (loss สูง = trellis เป็นตัวปัญหา · loss ต่ำแต่ P_E แย่ = cost model)
 
 #### 8.3 `pipeline/engines/juniward_stc.py` — engine หลัก ☐
 
@@ -1089,7 +1104,7 @@ magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
 | 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☑ ☑ ☑ ☑ ☑ |
-| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☐ ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
+| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |
 | 11 | 11.1 sandbox · 11.2 fuzz · 11.3 supply chain · 11.4 release | ☐ ☐ ☐ ☐ |
