@@ -767,9 +767,25 @@ ss_receiver = sk.decapsulate(ct)
 
 **Test:** `test_header_bits_are_indistinguishable_from_random` (monobit + runs test บน 10,000 header) · `test_envelope_mode_respects_capacity`
 
-#### 7.6 `crypto/ratchet/` ☐
+#### 7.6 `crypto/ratchet/` ◐ — `chain.py` เสร็จ ที่เหลือยังไม่ได้ทำ
 
-**ไฟล์:** `session.py`, `chain.py`, `state_store.py`, `state_lock.py`, `generation.py`, `rollback_guard.py`
+**ไฟล์:** ~~`chain.py`~~ ☑ · `session.py`, `state_store.py`, `state_lock.py`, `generation.py`, `rollback_guard.py` ☐
+
+**`chain.py` ทำแล้ว** — `tests/unit/test_crypto_ratchet.py` (31)
+- `MessageKeys` ครบ 4 ส่วนจาก okm 108 byte ก้อนเดียว · มี test ยืนยันว่า slice ทั้งสี่
+  **ครอบ 0..107 พอดี ไม่ทับกันและไม่มีช่องว่าง** (ทับกัน = สอง subkey ใช้ material ร่วมกัน)
+- `SendChain.next_message_keys()` — เรียงลำดับให้ไม่มีทางออกไหนที่ทิ้ง `CK[n]` ไว้
+- `RecvChain` — skipped pool + `max_skip` + `max_pool` + `mark_consumed()`
+- **`max_pool` เพิ่มเข้ามาเอง ไม่ได้อยู่ในสเปกเดิม** — `max_skip` คุมได้แค่ข้อความเดียว
+  แต่ข้อความที่ล้ำหน้าทีละนิดเรื่อย ๆ ทำให้ pool โตไม่มีเพดาน ทุก entry คือคีย์ 32 byte
+  ที่ค้างทั้งใน memory และในไฟล์ state · ทิ้งตัวเก่าสุดก่อน
+
+**เทสต์ที่สำคัญที่สุดในไฟล์:** `test_every_message_gets_a_different_selection_seed`
+ถ้าสองภาพได้ `seed_sel` เดียวกัน ผู้ตรวจที่มีทั้งสองภาพจะรู้ลำดับ scan ทันที
+selection channel หมดความหมาย และ **ไม่มีเทสต์อื่นในโปรเจกต์ที่จะแดง**
+
+**ยังเหลือ (ฝั่งไฟล์บนดิสก์ ความเสี่ยงคนละแบบ):** lock ครอบ read-modify-write ·
+temp→fsync→rename→fsync dir · generation guard · rollback detection
 **ขึ้นกับ:** 7.1, 7.2, 7.4
 **DoD**
 - `SendChain.next_message_keys()` zeroize `CK[n]` ทันทีหลัง derive `CK[n+1]`
@@ -781,7 +797,7 @@ ss_receiver = sk.decapsulate(ct)
 
 **Test:** `test_state_rollback_is_detected` · `test_two_processes_cannot_use_same_counter` · `test_crash_during_commit_never_reuses_counter` · `test_ratchet_limit_enforced`
 
-#### 7.7 `crypto/keystore.py` + `zeroize.py` + `lifecycle/` ☐
+#### 7.7 `crypto/keystore.py` + `zeroize.py` + `lifecycle/` ☑
 
 **ขึ้นกับ:** 7.1
 **DoD**
@@ -789,6 +805,28 @@ ss_receiver = sk.decapsulate(ct)
 - `zeroize()` มี docstring ประกาศข้อจำกัดของ Python ตรงๆ
 - `KeyState` state machine — ใช้คีย์ที่ `REVOKED`/`DESTROYED` ต้องโยน error
 - `destroy_session()` คืน report ว่าลบอะไรไปบ้าง
+
+**Test:** `tests/unit/test_crypto_keystore.py` (38)
+
+**รูปแบบไฟล์ keystore**
+```
+magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct+tag
+```
+- **argon2 params อยู่ในไฟล์ และอยู่ใน AEAD aad ด้วย** — ข้อบังคับที่เจอตอนทำ 7.1
+  ถ้าไม่มีในไฟล์ จะขึ้น cost parameter ไม่ได้อีกเลย · ถ้าไม่ผูกเข้า aad ผู้โจมตีแก้ 3 byte
+  เปลี่ยน 64 MiB เป็นค่าจิ๊บจ๊อยแล้วไฟล์ยังเปิดได้ (มี `test_lowering_the_parameters_in_the_file_is_refused`)
+- **nonce derive จาก key ไม่ได้สุ่มเก็บ** — salt ใหม่ทุกครั้ง key จึงใหม่ nonce ไม่มีทางซ้ำ
+  และตัด 12 byte ที่ผู้โจมตีแก้ได้ฟรีออกไป
+- ไฟล์ที่ไม่ใช่ keystore / version ไม่รู้จัก / สั้นเกิน → `CryptoError` **ไม่ใช่** `DecryptError`
+  บอกผู้ใช้ว่า "รหัสผ่านผิด" ทั้งที่ไฟล์ผิด จะทำให้ไล่หาผิดที่
+- `needs_rewrap()` — ไฟล์เก่ายังเปิดได้ที่ cost เดิม แล้วเขียนใหม่ที่ cost ปัจจุบันตอน unlock
+- save ผ่าน temp แล้ว rename — crash กลางทางไม่ทำให้คีย์เดิมหาย
+
+**`zeroize.py` — เขียนข้อจำกัดไว้ตรง ๆ**
+`bytes` เขียนทับไม่ได้เลย ต้องเป็น `bytearray` · interpreter อาจ copy ไปแล้ว · OS อาจ swap ลงดิสก์
+`zeroize(bytes)` **โยน TypeError ไม่ใช่เงียบ ๆ ไม่ทำอะไร** — call ที่ดูเหมือนล้างแล้วไม่ได้ล้าง
+แย่กว่าไม่ call เลย เพราะทำให้คนอ่านโค้ดเชื่อว่าความลับหายไปแล้ว
+`limitations()` เก็บข้อความที่ UI เอาไปแสดง ไว้ที่เดียวกับโค้ด จะได้ไม่หลุดจากความจริง
 
 ---
 
@@ -991,7 +1029,7 @@ ss_receiver = sk.decapsulate(ct)
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
-| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☐ ☑ ☐ ☐ ☐ |
+| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☐ ☑ ☐ ◐ ☑ |
 | 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☐ ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |
