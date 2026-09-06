@@ -1,13 +1,11 @@
 numpy>=2.0
-scipy>=1.14
 pillow>=11.0
-cryptography>=44.0
+cryptography>=48.0
 PyYAML>=6.0
 networkx>=3.3
 cffi>=1.17
 portalocker>=3.0
 jpeglib>=1.0
-liboqs-python>=0.10
 
 [analyzer]
 PyExifTool>=0.5
@@ -23,7 +21,6 @@ ruff>=0.6
 mypy>=1.11
 import-linter>=2.0
 nox>=2024.4
-pre-commit>=3.8
 bandit>=1.7
 pip-audit>=2.7
 cyclonedx-bom>=4.6

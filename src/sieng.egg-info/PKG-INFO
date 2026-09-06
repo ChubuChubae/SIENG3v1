@@ -5,15 +5,13 @@ Summary: Steganography Integrated ENGine - adaptive JPEG/PNG steganography with 
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: numpy>=2.0
-Requires-Dist: scipy>=1.14
 Requires-Dist: pillow>=11.0
-Requires-Dist: cryptography>=44.0
+Requires-Dist: cryptography>=48.0
 Requires-Dist: PyYAML>=6.0
 Requires-Dist: networkx>=3.3
 Requires-Dist: cffi>=1.17
 Requires-Dist: portalocker>=3.0
 Requires-Dist: jpeglib>=1.0
-Requires-Dist: liboqs-python>=0.10
 Provides-Extra: gui
 Requires-Dist: PyQt6>=6.7; extra == "gui"
 Provides-Extra: analyzer
@@ -33,7 +31,6 @@ Requires-Dist: ruff>=0.6; extra == "dev"
 Requires-Dist: mypy>=1.11; extra == "dev"
 Requires-Dist: import-linter>=2.0; extra == "dev"
 Requires-Dist: nox>=2024.4; extra == "dev"
-Requires-Dist: pre-commit>=3.8; extra == "dev"
 Requires-Dist: bandit>=1.7; extra == "dev"
 Requires-Dist: pip-audit>=2.7; extra == "dev"
 Requires-Dist: cyclonedx-bom>=4.6; extra == "dev"
@@ -117,7 +114,6 @@ scripts/check.sh     # ชุดมาตรฐาน (Windows ใช้ scripts
 |---|---|
 | `docs/PROJECT_CONTEXT.md` | **อ่านก่อนเริ่มงานทุกครั้ง** — สถานะปัจจุบัน ข้อตกลง scope งานรายโมดูล |
 | `docs/PROJECT_STRUCTURE.md` | อ้างอิงสถาปัตยกรรม สัญญาของแต่ละชั้น เหตุผลการออกแบบ |
-| `docs/ARCHITECTURE_v3.md` | บันทึกการออกแบบรอบแรก |
 | `SECURITY.md` | ขอบเขตด้านความปลอดภัยและวิธีรายงานปัญหา |
 
 ---
