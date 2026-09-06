@@ -34,6 +34,7 @@ the KDF one layer up, exactly as SESSION_PROTOCOL.md 4.1 describes. Zero extra b
 This layer runs under mypy --strict, so annotations are complete (PROJECT_CONTEXT.md 2.2.1).
 """
 
+import hashlib
 import secrets
 import struct
 from dataclasses import dataclass
@@ -111,8 +112,16 @@ class PublicIdentity:
         return cls(raw[: mlkem768.PUBLIC_BYTES], raw[mlkem768.PUBLIC_BYTES :])
 
     def fingerprint(self) -> bytes:
-        """A short, stable name for this identity, for the trust store and for display."""
-        return hkdf.length_prefixed(self.mlkem, self.x25519)
+        """A short, stable name for this identity, for the trust store and the envelope.
+
+        Hashed rather than the key itself: the envelope allots 32 bytes for it, and a
+        user who compares two identities out loud needs something they can read. Length
+        prefixed before hashing so that no pair of component keys can collide by having
+        the boundary between them moved.
+        """
+        return hashlib.sha256(
+            labels.TRANSCRIPT + hkdf.length_prefixed(self.mlkem, self.x25519)
+        ).digest()
 
     def _hpke_key(self) -> MLKEM768X25519PublicKey:
         return MLKEM768X25519PublicKey(

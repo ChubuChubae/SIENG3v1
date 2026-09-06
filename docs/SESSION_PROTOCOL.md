@@ -197,17 +197,27 @@ transcript = LP("SIENG3-transcript-v1")        // domain separator
           || LP(sender.mlkem_static_pk)        // 1184 B
           || LP(recipient.x25519_static_pk)    // 32 B
           || LP(recipient.mlkem_static_pk)     // 1184 B
-          || LP(eph_x25519_pk)                 // 32 B
-          || LP(mlkem_ciphertext)              // 1088 B
 ```
+รวม 2,545 B
+
+> **สองบรรทัดสุดท้ายถูกตัดออกจาก D14 — และตัดเพราะ "ต้องตัด" ไม่ใช่ "ตัดก็ได้"**
+>
+> เดิมมี `eph_x25519_pk` กับ `mlkem_ciphertext` อยู่ท้าย transcript เพราะ ML-KEM ไม่ committing
+> จึงต้องผูก ct เข้ามาเอง · ตอนนี้ **X-Wing ผ่าน HPKE ผูก encapsulation เข้า key schedule ให้แล้ว**
+>
+> และที่สำคัญกว่า: **ใส่ไม่ได้เพราะมันวนเป็นวงกลม** — encapsulation ถูกสร้างโดยเอา transcript นี้
+> ป้อนเข้าไปเป็น `info` ของ HPKE ดังนั้น transcript จะบรรจุ encapsulation ไม่ได้
+>
+> การผูกเกิดสองทางแทน: HPKE ผูก transcript เข้า blob ผ่าน `info` (blob ที่ transcript ไม่ตรงจะเปิด
+> ไม่ผ่านทันที ไม่ใช่ไป derive คีย์คนละตัวเงียบ ๆ) และ `derive_shared_secret()` ผสม transcript เข้า HKDF อีกชั้น
 
 **ทำไมต้องมี pk ของทั้งสองฝั่งอยู่ใน transcript ทั้งที่ต่างฝ่ายต่างรู้อยู่แล้ว**
 เพราะ transcript คือสิ่งที่ผูก session key เข้ากับ *การแลกเปลี่ยนครั้งนี้ครั้งเดียว*
 ถ้า pk ไม่อยู่ในนั้น ผู้โจมตีที่สลับ pk ระหว่างทางจะไม่ถูกจับได้จากการที่ session key ไม่ตรงกัน
 
-**ทำไมต้องมี `mlkem_ciphertext`**
+**ทำไมไม่มี `mlkem_ciphertext` แล้ว**
 ML-KEM ไม่เป็น committing โดยตัวมันเอง — ciphertext ต่างกันอาจ decapsulate ได้ shared secret เดียวกันในบางสถานการณ์
-การผูก ct เข้า transcript ปิดช่องนี้
+เดิมเราปิดช่องนี้ด้วยการผูก ct เข้า transcript เอง · ตอนนี้ **X-Wing ปิดให้แล้วในระดับ combiner** ซึ่งเป็นโค้ดที่ผ่านการรีวิว ไม่ใช่ของที่เราเขียนเอง (D14)
 
 ---
 

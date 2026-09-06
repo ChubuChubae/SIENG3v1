@@ -7,7 +7,6 @@ habit the crypto layer will need.
 Tests added later:
   Phase 3.2  test_unsupported_carrier_is_refused
   Phase 7.3  test_mitm_key_substitution_is_rejected
-  Phase 7.5  test_header_bits_are_indistinguishable_from_random
   Phase 7.6  test_state_rollback_is_detected
              test_two_processes_cannot_use_same_counter
 """

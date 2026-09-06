@@ -722,7 +722,7 @@ ss_sender, ct = sk.public_key().encapsulate()   # ct 1088 B, pk 1184 B
 ss_receiver = sk.decapsulate(ct)
 ```
 
-#### 7.3 `crypto/auth/` ☐
+#### 7.3 `crypto/auth/` ☑
 
 **ไฟล์:** `identity.py`, `transcript.py`, `key_binding.py`, `signatures.py`, `trust_store.py`
 **ขึ้นกับ:** 1.2, 7.2
@@ -736,7 +736,26 @@ ss_receiver = sk.decapsulate(ct)
   ไม่มีทางใส่ลงในภาพ 512×512 ได้ ต้องไปทาง `ENVELOPE_EXTERNAL` เท่านั้น)
 - `TrustStore` บันทึกว่าเชื่อ identity นั้นเพราะอะไร (`fingerprint` / `qr` / `manual`) และ revoke ได้
 
-**Test:** `test_mitm_key_substitution_is_rejected` · `test_transcript_canonicalization` · `test_revoked_identity_is_refused`
+**Test:** `tests/unit/test_crypto_auth.py` (48) · `tests/security/test_auth_attacks.py` (15)
+— `test_mitm_key_substitution_is_rejected` · `test_transcript_canonicalization` ครบตาม DoD
+
+**ทำแล้ว**
+- `transcript.py` — สูตรตาม `SESSION_PROTOCOL.md` 5.2 · **ทุกฟิลด์ผ่าน `LP()` ไม่มีข้อยกเว้น**
+  มี `test_every_field_is_length_prefixed` ที่คำนวณความยาวรวมจากผลบวกของฟิลด์ + 2 byte ต่อฟิลด์
+  ถ้ามีฟิลด์ไหนหลุด LP ตัวเลขจะขาดไป 2
+- `identity.py` — 4 คีย์ (x25519 + ML-KEM / Ed25519 + ML-DSA) · **secret เก็บเป็น seed รวม 160 byte**
+  แทน ~6,500 byte ของคีย์ที่กางแล้ว · `display()` = 8 กลุ่ม กลุ่มละ 4 hex อ่านออกเสียงได้
+- `signatures.py` — **ต้องผ่านทั้ง Ed25519 และ ML-DSA-65** · error ไม่บอกว่าครึ่งไหนพัง
+  (ถ้าบอก ผู้โจมตีจะโจมตีทีละครึ่งได้) · ตรวจทั้งสองเสมอแม้อันแรกพังแล้ว เวลาจึงไม่ฟ้อง
+- `trust_store.py` — `verified_via` มีแค่ `qr` / `voice` / `manual` · **ไม่มีค่าที่แปลว่า "กดผ่าน"**
+  ถ้ามี UI จะมีปุ่มนั้น ผู้ใช้จะกดทุกครั้ง แล้ว authentication ทั้งหมดกลายเป็นของประดับ
+  · revoke แล้วสร้าง session ใหม่ไม่ได้ แต่ `get()` ยังได้ — ข้อความเก่าต้องอ่านได้ต่อ
+
+**เปลี่ยนสเปก: transcript ตัด 2 บรรทัดท้ายออก**
+`eph_x25519_pk` กับ `mlkem_ciphertext` หายไป **ไม่ใช่เพราะไม่จำเป็น แต่เพราะใส่ไม่ได้** —
+encapsulation ถูกสร้างจากการเอา transcript ป้อนเป็น `info` ของ HPKE จึงวนเป็นวงกลม
+X-Wing ผูก encapsulation เข้า key schedule ให้แล้ว (ดู `SESSION_PROTOCOL.md` 5.2)
+**transcript ยาว 2,545 B**
 
 #### 7.4 `crypto/aead/gcm_siv.py` ☑
 
@@ -757,7 +776,7 @@ ss_receiver = sk.decapsulate(ct)
 แต่ความยาว ciphertext เป็นค่าสาธารณะอยู่แล้ว (ผู้โจมตีเป็นคนส่งมาเอง) จึงไม่มีอะไรลับรั่ว
 ส่วนที่เหลือเป็นงานของ `cryptography` ซึ่ง constant time อยู่แล้ว
 
-#### 7.5 `crypto/header.py` + `envelope.py` ☐
+#### 7.5 `crypto/header.py` + `envelope.py` ☑
 
 **ขึ้นกับ:** 1.3, 7.1
 **DoD**
@@ -765,7 +784,18 @@ ss_receiver = sk.decapsulate(ct)
 - whitening ใช้ `K_hdr_session` ที่ derive จาก `ss` **ไม่ใช่จาก `MK[n]`**
 - `choose_mode()` ตัดสินจากความจุจริง — ภาพ 512×512 ที่ 0.1 bpnzAC ต้องได้ `ENVELOPE_EXTERNAL` เสมอ
 
-**Test:** `test_header_bits_are_indistinguishable_from_random` (monobit + runs test บน 10,000 header) · `test_envelope_mode_respects_capacity`
+**Test:** `tests/unit/test_crypto_header.py` (50) · `tests/security/test_header_randomness.py` (7)
+
+**`unwhiten_search()` — จุดที่ยากที่สุดของโมดูลนี้**
+keystream ขึ้นกับ `ctr` แต่ `ctr` อยู่ในตัว header เอง จึงต้องไล่ลองจาก `ctr` ล่าสุดที่เห็น
+รับ candidate เมื่อครบ 4 เงื่อนไข: version/suite รู้จัก · `ctr` ข้างในตรงกับที่ลอง · reserved bit เป็น 0 ·
+`length` ไม่เกินความจุพาหะ → โอกาสหลุดโดยบังเอิญราว 1 ใน 4 พันล้านต่อ candidate
+**มีเพดานตาม `max_skip` เสมอ** — `test_the_search_stops_at_the_limit_rather_than_running_to_the_end`
+นับจำนวนครั้งที่เรียก `keystream()` (ไม่ใช่จับเวลา ซึ่ง flaky) ยืนยันว่าหยุดที่ 25 พอดี
+
+**statistical test ตาม DoD** — monobit + runs (NIST SP 800-22) บน 10,000 header = 960,000 bit
+พร้อม **negative control**: header ที่ไม่ผ่าน whitening ต้อง**สอบตก** monobit และ byte 0 ต้องเป็น `0x11` ทุกไฟล์
+เทสต์ที่ไม่มีวันแดงไม่ได้พิสูจน์อะไร
 
 #### 7.6 `crypto/ratchet/` ◐ — `chain.py` เสร็จ ที่เหลือยังไม่ได้ทำ
 
@@ -1029,7 +1059,7 @@ magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct
 | 4 | 4.1 tools · 4.2 formats · 4.3 stat · 4.4 dct · 4.5 dispatcher | ☐ ☐ ☐ ☐ ☐ |
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
-| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☐ ☑ ☐ ◐ ☑ |
+| 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☑ ☑ ☑ ◐ ☑ |
 | 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☐ ☐ ☐ ☐ ☐ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |

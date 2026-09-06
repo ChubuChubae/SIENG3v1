@@ -176,16 +176,18 @@ bit 6-7 สงวน                ต้องเป็น 0 -- ผู้ร�
 | session_id                    |    4 B |
 | sender_fingerprint            |   32 B |
 | recipient_fingerprint         |   32 B |
-| eph_x25519_pk                 |   32 B |
-| mlkem_ciphertext              | 1088 B |
+| sealed_secret (HPKE X-Wing)   | 1168 B |   D14: blob เดียว ไม่ใช่ eph_pk + mlkem_ct
 | signature (ถ้า auth = PQ)      | 3373 B |
 +-------------------------------+--------+
-รวม  1,196 B (implicit)  /  4,569 B (explicit)
+รวม  1,244 B (implicit)  /  4,617 B (explicit)
 
 โหมด INLINE (ฝังในภาพ)
 โครงเดียวกัน แต่ตัด magic 4 B ออก แล้ว whiten ทั้งก้อนเหมือน header
-รวม  1,192 B (implicit)  /  4,565 B (explicit)
+รวม  1,240 B (implicit)  /  4,613 B (explicit)
 ```
+
+> **ขนาดเปลี่ยนจาก D14** — เดิมเป็น `eph_x25519_pk (32) + mlkem_ciphertext (1088) = 1,120 B`
+> ตอนนี้เป็น HPKE blob ก้อนเดียว 1,168 B (enc 1,120 + secret 32 + tag 16) **แพงขึ้น 48 B**
 
 ### 4.2 ทำไม external มี magic ได้แต่ inline มีไม่ได้
 
@@ -210,14 +212,22 @@ def choose_mode(carrier, payload_rate, auth_mode):
     return ENVELOPE_EXTERNAL
 ```
 
-ตารางผลลัพธ์จริง (auth = `AUTH_IMPLICIT`, envelope 1,192 B = 9,536 bit)
+ตารางผลลัพธ์จริง (auth = `AUTH_IMPLICIT`, envelope 1,240 B = 9,920 bit · เกณฑ์ INLINE = 79,360 bit)
 
 | พาหะ | nnzAC โดยประมาณ | ที่ 0.1 bpnzAC | โหมดที่ได้ |
 |---|---:|---:|---|
 | 512×512 QF75 (ภาพงานวิจัย) | 26,000 | 2,600 bit | **EXTERNAL** |
-| 1024×1024 QF85 | 130,000 | 13,000 bit | **EXTERNAL** (ยังไม่ถึง 8 เท่า) |
-| 2048×1536 QF90 (ภาพมือถือ) | 500,000 | 50,000 bit | **INLINE** |
+| 1024×1024 QF85 | 130,000 | 13,000 bit | **EXTERNAL** |
+| 2048×1536 QF90 (ภาพมือถือ) | 500,000 | 50,000 bit | **EXTERNAL** |
 | 4000×3000 QF90 (ภาพกล้อง) | 1,500,000 | 150,000 bit | **INLINE** |
+
+> **แก้ตารางแล้ว — ของเดิมขัดกับสูตรของตัวเอง**
+> แถว 2048×1536 เคยเขียนว่า INLINE แต่ 50,000 bit ยังไม่ถึง 8 เท่าของ envelope
+> (แม้คิดด้วยตัวเลขเก่า 9,536 × 8 = 76,288 ก็ยังไม่ถึง) ตารางนี้เป็นผลลัพธ์ที่ derive จากสูตร
+> จึงยึดสูตรเป็นหลักและแก้ตารางตาม
+>
+> **จุดตัดจริงที่ 0.1 bpnzAC คือ nnzAC ≈ 793,600** — ต่ำกว่านั้นได้ EXTERNAL ทั้งหมด
+> แปลว่าภาพงานวิจัยทุกขนาดเป็น EXTERNAL และนั่นคือค่าเริ่มต้นที่ถูกต้องอยู่แล้ว
 
 **ค่าเริ่มต้นของงานวิจัยจึงเป็น `EXTERNAL` เสมอ** ผู้ใช้ override ได้แต่ระบบต้องเตือนเมื่อการเลือกทำให้ payload rate จริงพุ่งขึ้น
 
@@ -389,8 +399,8 @@ state_store.save(state)
 | `COUNTER_BITS` | 24 |
 | `LENGTH_BITS` | 24 |
 | `FINGERPRINT_BYTES` | 32 |
-| `ENVELOPE_EXTERNAL_IMPLICIT` | 1,196 |
-| `ENVELOPE_EXTERNAL_EXPLICIT` | 4,569 |
+| `ENVELOPE_EXTERNAL_IMPLICIT` | 1,244 |
+| `ENVELOPE_EXTERNAL_EXPLICIT` | 4,617 |
 | `ENVELOPE_INLINE_IMPLICIT` | 1,192 |
 | `ENVELOPE_INLINE_EXPLICIT` | 4,565 |
 | `MAX_CIPHERTEXT_BYTES` | 16,777,215 |

@@ -101,6 +101,12 @@ def test_fingerprints_identify_an_identity(alice, bob):
     assert alice.public().fingerprint() == alice.public().fingerprint()
 
 
+def test_a_fingerprint_is_the_size_the_envelope_allots_it(alice):
+    """32 bytes, because that is the field width in the SessionEnvelope and because a
+    user comparing two identities out loud needs something short enough to read."""
+    assert len(alice.public().fingerprint()) == 32
+
+
 # ---- the encapsulation -----------------------------------------------------
 
 

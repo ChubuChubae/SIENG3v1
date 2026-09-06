@@ -1,10 +1,36 @@
-"""Identity and key binding. Closes the MITM hole that a KEM alone cannot.
+"""Who sent this, and is that who they claim to be.
 
-A KEM only proves you share a secret with someone. It does not prove that someone is
-who you meant to talk to.
+Four concerns, kept apart because they fail differently:
+
+    transcript    what the two sides must agree on, byte for byte
+    identity      the four public keys and the fingerprint over them
+    signatures    AUTH_PQ_EXPLICIT, where both algorithms must verify
+    trust_store   which fingerprints this machine accepts, and why
+
+The weakest link is not in any of them. It is the moment a human decides that a
+fingerprint belongs to the person they mean, and nothing here can do that for them.
 """
 
-AUTH_IMPLICIT = 0x01  # 0 B overhead, the default
-AUTH_PQ_EXPLICIT = 0x02  # 3373 B overhead, used when the envelope is external
+from sieng.crypto.auth.identity import Identity, SecretKeys, generate, load_public
+from sieng.crypto.auth.signatures import SIGNATURE_BYTES, SignatureError, sign, verify
+from sieng.crypto.auth.transcript import build
+from sieng.crypto.auth.trust_store import (
+    VERIFICATION_METHODS,
+    TrustEntry,
+    TrustStore,
+)
 
-__all__ = ["AUTH_IMPLICIT", "AUTH_PQ_EXPLICIT"]
+__all__ = [
+    "SIGNATURE_BYTES",
+    "VERIFICATION_METHODS",
+    "Identity",
+    "SecretKeys",
+    "SignatureError",
+    "TrustEntry",
+    "TrustStore",
+    "build",
+    "generate",
+    "load_public",
+    "sign",
+    "verify",
+]
