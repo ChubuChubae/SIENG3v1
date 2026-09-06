@@ -962,7 +962,7 @@ byte-exact — คนละคำถาม ต้องมีทั้งคู�
 **ต้องตัดสินใจก่อนเริ่ม 8.4:** ให้ `flip_costs()` รับ domain เข้ามา · หรือแยกเป็นสองฟังก์ชัน ·
 หรือให้ carrier ส่ง plane เป็น `int16` ตั้งแต่ต้น (ดู D13)
 
-#### 8.5 `pipeline/embed.py` + `extract.py` ☐
+#### 8.5 `pipeline/embed.py` + `extract.py` ☑
 
 **ขึ้นกับ:** 8.3
 **DoD**
@@ -975,7 +975,34 @@ byte-exact — คนละคำถาม ต้องมีทั้งคู�
 - **เซฟ ratchet state ก่อนเขียนไฟล์ stego เสมอ** (ยอมข้าม counter ดีกว่าใช้ซ้ำ)
 - extract ถอด header ได้ก่อนรู้ `ctr` (ใช้ `K_hdr_session`)
 
-**Test:** `test_embed_extract_roundtrip` ทุก payload rate · `test_state_saved_before_output_written`
+**Test:** `tests/integration/test_pipeline_runs.py` (22) — มี `test_embed_extract_roundtrip`
+และ `test_state_saved_before_output_written` ครบตาม DoD
+
+**ความไม่สมมาตรระหว่างสองฟังก์ชัน คือสาระของไฟล์คู่นี้**
+
+`run_embed` บอก error ละเอียด — คนที่ฝังเป็นเจ้าของ input เอง ต้องรู้ว่าอะไรผิดถึงจะแก้ได้
+(cover หาย · rate นอกช่วง · engine ใช้กับ carrier นี้ไม่ได้ · เขียนทับ cover ตัวเอง)
+
+`run_extract` **ทุกความล้มเหลวที่เกี่ยวกับตัวไฟล์ = `DecryptError` เดียว ไม่มีรายละเอียด**
+เพราะทุก error ที่แยกออกจากกันได้ คือสิ่งที่ผู้ตรวจวัดได้:
+
+| ถ้าบอกว่า | ผู้ตรวจได้รู้ว่า |
+|---|---|
+| "รหัสผ่านผิด" | ไฟล์นี้มีอะไรซ่อนอยู่ |
+| "ไม่พบ header" | ไฟล์นี้ไม่มีอะไร |
+| "คนละ session" | ไฟล์นี้ไม่ได้ส่งถึงใคร |
+| "tag ไม่ตรง" | ไฟล์นี้ถูกแก้ |
+
+ใช้ `raise ... from None` ด้วย เพื่อไม่ให้ traceback บอกว่าชั้นไหนเป็นคนยอมแพ้
+(= ไฟล์ไปได้ไกลแค่ไหน) · มี `test_the_traceback_does_not_name_the_module_that_failed` คุม
+
+**ข้อยกเว้นที่ตั้งใจ: `TRANSPARENT`** — `ReplayError` `RatchetLimitError` `Cancelled`
+ทั้งสามเป็นข้อเท็จจริงเกี่ยวกับ session ของเราเอง ที่ผู้รับรู้อยู่แล้ว ไม่ได้เปิดเผยอะไรใหม่
+และถ้าปิดบัง ผู้ใช้จะงงว่าทำไมไฟล์ที่เพิ่งอ่านได้ อ่านอีกทีไม่ได้
+· มี test pin รายการนี้ไว้ เพราะการเติมของเข้าไปคือวิธีที่ความเงียบจะหายไปเงียบ ๆ
+
+**`holds_a_message()`** — ตั้งชื่อตามสิ่งที่มันตอบจริง ๆ เพื่อให้ UI ไม่ไปเขียนเวอร์ชันของตัวเอง
+ด้วยการ catch exception แล้วแยกเส้นผิด
 
 #### 8.6 `pipeline/engines/lsbpp.py` + `locomotive.py` + `metadata.py` ☐
 
@@ -1125,7 +1152,7 @@ byte-exact — คนละคำถาม ต้องมีทั้งคู�
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
 | 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☑ ☑ ☑ ☑ ☑ |
-| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☑ ☐ ☐ ☐ ☐ ☐ |
+| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☑ ☐ ☑ ☐ ☐ ☐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |
 | 11 | 11.1 sandbox · 11.2 fuzz · 11.3 supply chain · 11.4 release | ☐ ☐ ☐ ☐ |
