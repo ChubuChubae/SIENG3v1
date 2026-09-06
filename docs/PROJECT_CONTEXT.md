@@ -3,7 +3,7 @@
 > **อ่านไฟล์นี้ก่อนเริ่มงานทุกครั้ง** แล้วเข้างานต่อได้เลยโดยไม่ต้องไล่อ่านโค้ดทั้งโปรเจกต์
 > ไฟล์นี้ตอบ 4 คำถาม: ตอนนี้อยู่ที่ไหน · ตกลงกันไว้ว่าอะไร · ต้องทำอะไรต่อ · อะไรยังไม่ได้ตัดสินใจ
 > อ้างอิงสถาปัตยกรรม: `docs/PROJECT_STRUCTURE.md` (v1.2)
-> อัปเดตล่าสุด: 2026-09-06
+> อัปเดตล่าสุด: 2026-09-07
 
 ---
 
@@ -12,13 +12,16 @@
 ### 1.1 สรุปในหนึ่งย่อหน้า
 
 โฟลเดอร์โปรเจกต์คือ **`SIENG3v1`** (เปลี่ยนชื่อมาจาก `SIENG2_2`)
-**Phase 0, 1, 2, 3, 5 (ยกเว้น 5.2), 6 เสร็จแล้ว** — `nox` เขียวครบทุก session
+**Phase 0, 1, 2, 3, 5 (ยกเว้น 5.2), 6, 7 เสร็จแล้ว** — `nox` เขียวครบทุก session
 
 จุดสำคัญที่สุดของสถานะตอนนี้: **สายหลักฝั่ง JPEG ต่อครบวงแล้วและพิสูจน์แล้วบนไฟล์จริง**
 `tests/integration/test_embed_roundtrip.py` รัน `load → planes → cost → permute → STC → apply →
 save → reload → extract` บน fixture จริงผ่านทั้งหมด ที่เหลือคือเอา crypto มาต่อหัวท้าย
 
-ยังไม่มีโค้ด: `crypto` (Phase 7) · `pipeline` (Phase 8) · `analyzer` (Phase 4) · `coder/_native` (5.2)
+**Phase 7 ครบทั้ง 7 module** — kdf · kem (X-Wing/HPKE) · auth · aead · header · ratchet · keystore
+พร้อม KAT จาก RFC 5869 และ RFC 8452 และเทสต์การโจมตีจริงใน `tests/security/`
+
+ยังไม่มีโค้ด: `pipeline` (Phase 8) · `analyzer` (Phase 4) · `coder/_native` (5.2)
 โค้ดเดิม (GUI, analyzer, stego, crypto ~16,800 บรรทัด) ถูกลบโดยเจตนา เพื่อเริ่มเขียนใหม่ตามสัญญาของแต่ละชั้น
 
 **สาย spatial (PNG) ยังวิ่งไม่ครบวง** — cost/hill.py เสร็จแล้วแต่ `coder/` สมมติว่าเป็น DCT เสมอ ดู D13
@@ -29,10 +32,10 @@ save → reload → extract` บน fixture จริงผ่านทั้ง
 |---|---:|
 | แพ็กเกจ Python ใน `src/sieng` | 41 |
 | ไฟล์ `.py` ใน `src/sieng` | 45 ไฟล์ / 458 บรรทัด (Phase 0 เพิ่ม `app` กับ `ui` เข้ามา) |
-| ไฟล์ test | **410 test ผ่านหมด** (unit 355 · integration 33 · property 10 · security 12) |
+| ไฟล์ test | **793 test ผ่านหมด** (unit 636 · security 49+1 skip · vectors 59 · integration 39 · property 10) |
 | ไฟล์ทรัพยากร | 88 (svg 43 · png 38 · qss 1 · yaml 5 · c 1) |
 | `pip install -e .` | ผ่านแล้ว (มี `src/sieng.egg-info/`) |
-| `nox` ชุดมาตรฐาน 8 session | **ผ่านหมด** — lint · types · imports (5 contracts kept) · unit 355 · property 10 · integration 33 · vectors · security 12+1 skip |
+| `nox` ชุดมาตรฐาน 8 session | **ผ่านหมด** — lint · types (50 ไฟล์ strict) · imports (5 contracts kept) · unit 636 · property 10 · integration 39 · vectors 59 · security 49+1 skip |
 | git | repo ใหม่ commit เดียว `ADD: Create Skeleton Project` |
 
 ### 1.3 อะไรมีอยู่ อะไรไม่มี
@@ -46,6 +49,9 @@ save → reload → extract` บน fixture จริงผ่านทั้ง
 | `src/sieng/coder/` | Phase 5.1 + 5.3 — `build_h_hat` · STC Viterbi embed/extract · `simulator` (binary + ternary bound) · **ยังไม่มี 5.2 C kernel** |
 | `src/sieng/cost/` | Phase 6 ครบ 6 โมเดล — `juniward` `uerd` `si_uniward` (dct) · `hill` `legacy_texture` (spatial) · `wavelet.py` db8 · `_dct.py` |
 | `tests/integration/` | `test_cost_coder.py` (20) · `test_embed_roundtrip.py` (13) — **วงจร JPEG ครบวงพิสูจน์แล้ว** |
+| `src/sieng/crypto/` | Phase 7 ครบ — `kdf` `kem` `auth` `aead` `header.py` `envelope.py` `ratchet` `keystore.py` `zeroize.py` `lifecycle` |
+| `tests/vectors/` | KAT จริง — RFC 5869 (HKDF) 28 · RFC 8452 (GCM-SIV) 31 |
+| `tests/security/` | รันการโจมตีจริง — MITM · downgrade · replay · rollback · 2 process แย่ง counter |
 
 **สิ่งที่ spike ค้นพบและกลายเป็นข้อบังคับของ `_jpeg_codec.py`**
 
@@ -1122,9 +1128,8 @@ magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct
    ต้องผ่านครบ · แก้สิ่งที่แดง · สร้าง lockfile
    (ยังเหลือข้อนี้เพราะเครื่องที่ใช้สร้างไฟล์เข้า PyPI ไม่ได้ จึงยังไม่ได้รัน ruff/mypy/nox จริง)
 2. **Phase 8** ประกอบ carrier + coder + cost + crypto เข้าด้วยกันเป็น `sieng embed`
-   — อย่าลืม `permute()` ก่อน coder (ดู DoD 8.5)
-3. **Phase 7** (crypto) เป็นตัวบล็อก 8.3 จริง ๆ · Phase 6 เสร็จแล้วทั้งหมด
-   D2/D3 ปิดแล้ว เหลือเคาะ **D14/D15** ก่อนเขียน 7.2
+   — อย่าลืม `permute()` ก่อน coder (ดู DoD 8.5) · **ไม่มีอะไรบล็อก 8.1/8.2/8.3 แล้ว**
+3. **8.4 (hill_stc) ยังบล็อกด้วย D13** — สาย spatial ยังวิ่งไม่ได้ · สาย JPEG ไปได้จนจบ
    (**Phase 5.2 C kernel เลื่อนได้** — numpy ทำ 512×512 ที่ h=10 ใน 0.5 วินาที ซึ่งพอสำหรับพัฒนา
    จะเริ่มคุ้มตอนทำ research sweep หลายพันภาพใน Phase 10)
 4. เคาะ **D13** (coder รองรับ spatial) ก่อน Phase 8.4 · **D5** (STC เป็น C หรือ numpy) ก่อน Phase 5.2
