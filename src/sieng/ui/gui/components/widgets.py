@@ -527,8 +527,13 @@ class SavePicker(QFrame):
         row.addWidget(small_button("Browse", self._browse))
 
     def _browse(self) -> None:
-        """Opens where the last one was saved, with a name already filled in if we have one."""
-        start = str(Path(self.start_dir) / self.suggested) if self.start_dir else self.suggested
+        """Opens where the last one was saved, with a name already filled in if we have one.
+
+        The starting point is always an absolute path. A bare filename makes the Windows
+        dialog try to resolve it as a URL, which it complains about and then ignores.
+        """
+        folder = Path(self.start_dir) if self.start_dir else Path.home()
+        start = str(folder / self.suggested) if self.suggested else str(folder)
         chosen, _ = QFileDialog.getSaveFileName(self, "Save as", start, self._filters)
         if chosen:
             self.set_path(Path(chosen))

@@ -17,6 +17,10 @@ the entropy data is meaningless without the tables that produced it. verify_tabl
 checks that on every write and refuses rather than producing a file that decodes to noise.
 """
 
+import sys
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -129,6 +133,81 @@ def grid_to_blocks(grid: Array) -> Array:
     return np.ascontiguousarray(blocks)
 
 
+# ---- paths libjpeg can actually open ---------------------------------------
+#
+# libjpeg is C, and jpeglib hands it the path as a byte string in the system code page.
+# On Windows that means a folder called "รูปภาพ" cannot be opened at all: the call fails
+# with "reading info of ... failed", which reads like a corrupt file and is not one.
+#
+# So a path that is not plain ASCII is turned into one. First choice is the 8.3 short
+# name, which Windows keeps for exactly this reason and which needs no copy. Only if that
+# is unavailable is the file copied, and then it is deleted straight afterwards.
+
+SCRATCH_NAME = "sieng-scratch.jpg"
+
+
+def _short_name(path: Path) -> Path | None:
+    """The 8.3 name for an existing path, if Windows still keeps one.
+
+    Windows returns the long name unchanged when the volume has 8.3 creation switched off,
+    which is common, so the result is only usable if it is both ASCII and really there.
+    """
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+
+        buffer = ctypes.create_unicode_buffer(1024)
+        written = ctypes.windll.kernel32.GetShortPathNameW(str(path), buffer, 1024)
+    except Exception:
+        # Any failure here just means the fallback is used. It is never fatal.
+        return None
+    if not written:
+        return None
+    short = Path(buffer.value)
+    return short if str(short).isascii() and short.exists() else None
+
+
+@contextmanager
+def readable_path(path: Path) -> Iterator[Path]:
+    """A path for this file that libjpeg can open, copying only as a last resort."""
+    if str(path).isascii():
+        yield path
+        return
+
+    short = _short_name(path)
+    if short is not None:
+        yield short
+        return
+
+    handle = tempfile.NamedTemporaryFile(suffix=path.suffix, delete=False)
+    copy = Path(handle.name)
+    try:
+        handle.write(path.read_bytes())
+        handle.close()
+        yield copy
+    finally:
+        handle.close()
+        copy.unlink(missing_ok=True)
+
+
+@contextmanager
+def writable_path(scratch: Path) -> Iterator[Path]:
+    """Somewhere libjpeg can write, as close to the caller's choice as the name allows."""
+    if str(scratch).isascii():
+        yield scratch
+        return
+
+    short = _short_name(scratch.parent)
+    if short is not None:
+        yield short / SCRATCH_NAME
+        return
+
+    # Neither the folder nor a short name is usable, so the scratch file goes to the
+    # system temp directory. It is deleted by the caller's finally either way.
+    yield Path(tempfile.gettempdir()) / SCRATCH_NAME
+
+
 def read_dct(path: Path) -> Any:
     """Read quantised coefficients. Never dequantise, never run an inverse DCT."""
     try:
@@ -139,7 +218,8 @@ def read_dct(path: Path) -> Any:
         ) from error
 
     try:
-        return jpeglib.read_dct(str(path))
+        with readable_path(Path(path)) as usable:
+            return jpeglib.read_dct(str(usable))
     except Exception as error:
         # Catching everything is deliberate: whatever jpeglib raises, the file is unusable
         # and the caller only needs one clear reason.
@@ -155,11 +235,13 @@ def encode_to_bytes(dct: Any, scratch: Path) -> bytes:
     where it goes so it can be put next to the destination rather than in a shared temp
     directory, where a stego file has no business sitting.
     """
-    try:
-        dct.write_dct(str(scratch))
-        return scratch.read_bytes()
-    finally:
-        scratch.unlink(missing_ok=True)
+    with writable_path(scratch) as usable:
+        try:
+            dct.write_dct(str(usable))
+            return usable.read_bytes()
+        finally:
+            usable.unlink(missing_ok=True)
+            scratch.unlink(missing_ok=True)
 
 
 def splice(original: bytes, written: bytes) -> bytes:
