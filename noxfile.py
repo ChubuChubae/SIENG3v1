@@ -18,6 +18,11 @@ nox.options.stop_on_first_error = False
 # integration is in this list on purpose. It was left out once and the whole folder went
 # unrun for two phases, which is exactly the mistake it exists to catch. It uses the 64x64
 # fixture for most cases so it stays quick enough to belong here.
+#
+# `slow` is not in the list, and that is a compromise with a known cost. It holds the only
+# test that uses a full size photograph, which is the size that found the trellis memory
+# bug, and it takes about a minute. Run `nox -s slow` before anything that claims the
+# engine works, and always before a release.
 nox.options.sessions = [
     "lint",
     "types",
@@ -125,7 +130,13 @@ def property_tests(session):
 @nox.session(python=PYTHON, venv_backend="none")
 def integration(session):
     """Full pipeline, including the yaml templates."""
-    run_pytest(session, "tests/integration")
+    run_pytest(session, "tests/integration", "-m", "not slow")
+
+
+@nox.session(python=PYTHON, venv_backend="none")
+def slow(session):
+    """The tests that use a full size photograph. Minutes, not seconds."""
+    session.run("pytest", "tests", "-q", "-m", "slow", external=True)
 
 
 @nox.session(python=PYTHON, venv_backend="none")

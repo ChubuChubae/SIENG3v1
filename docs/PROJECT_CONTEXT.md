@@ -598,6 +598,25 @@ Phase 4 (analyzer) กับ 9 (ui) เป็นการนำโค้ดเ�
 
 **Test:** `tests/unit/test_coder.py` · `test_stc_roundtrip_all_rates` (0.05–0.4, h=10 และ 12) · `test_capacity_error_reports_max`
 
+**หน่วยความจำของ trellis — เจอตอนผู้ใช้ลองภาพถ่ายจริง (2026-09-07)**
+เดิม `_viterbi` จอง `path` ทั้งก้อนเป็น `np.bool_` ขนาด `n_values × 2^h` **หนึ่งไบต์ต่อ state ต่อคอลัมน์**
+ภาพ 1200×960 มีสัมประสิทธิ์ราว 3.3 ล้าน × 1024 state = **3.2 GiB** → ฝังไม่ได้เลย
+และเพราะ `width = n_values // n_bits` ทำให้ `usable ≈ n_values` เสมอ **ขนาดนี้ขึ้นกับภาพ ไม่ใช่ payload**
+payload 1 บิตก็พังเท่ากัน
+
+แก้สองชั้น:
+1. `path` เก็บ **1 บิตต่อ state** (`np.packbits`) — ลด 8 เท่า
+2. `_solve()` แบ่งเป็น **segment** ละ `SEGMENT_COLUMNS` คอลัมน์ · forward ทั้งภาพเก็บแค่ weight vector
+   ที่รอยต่อ (กิโลไบต์) แล้วค่อยทำ forward ซ้ำทีละ segment พร้อมบันทึก path และ backtrack ทันที
+   · state ที่ segment หนึ่งเริ่ม = state ที่ segment ก่อนหน้าต้องจบ จึงไม่ต้อง terminate อะไรเลย
+
+**ผลลัพธ์เท่าเดิมทุกบิต** — มี `test_segmenting_changes_nothing_about_the_answer` คุม
+`SEGMENT_COLUMNS` จึง **ไม่ใช่ส่วนหนึ่งของรูปแบบไฟล์** · `extract()` ไม่ต้องแก้ · ผู้รับไม่รู้ว่ามี segment
+ราคาที่จ่ายคือ forward pass สองรอบ (เวลา ~2 เท่า) ซึ่งเป็นเหตุผลเพิ่มให้ทำ 5.2 (C kernel)
+
+**บทเรียน:** เทสต์ทั้งหมดของ 5.1/8.3 ใช้ภาพเล็ก บั๊กนี้จึงรอดมาสองเฟส
+→ เพิ่ม `test_a_full_size_photograph_can_carry_a_message` (mark `slow`, รันด้วย `nox -s slow`)
+
 #### 5.2 `coder/_native/` — C kernel ☐
 
 **ไฟล์:** `stc_kernel.c` (ตรวจของที่มี), `build.py`
@@ -926,7 +945,8 @@ magic "SI3K" (4) | version (1) | argon2 params (9) | salt (16) | nonce (12) | ct
 
 **ขึ้นกับ:** 3.3, 5.1, 6.2, 7.6, 8.2
 **DoD:** ประกอบชั้นล่างตามลำดับใน `PROJECT_STRUCTURE.md` §2.3 · **ไม่มี math ใหม่ในไฟล์นี้** · AAD = header ‖ `carrier.fingerprint()`
-**Test:** `tests/integration/test_engine_roundtrip.py` (23)
+· **ต้องรันกับภาพขนาดจริง (≥ 1 ล้านสัมประสิทธิ์) ได้** — เพิ่มเข้ามาหลังเจอบั๊ก trellis (ดู 5.1)
+**Test:** `tests/integration/test_engine_roundtrip.py` (23) · `test_engine_on_jpeg.py::test_a_full_size_photograph_can_carry_a_message`
 
 **เจอช่องว่างจริงตอนประกอบ: state file ไม่ได้เก็บ `K_hdr_session`**
 `ss` ถูกทิ้งหลัง derive `CK[0]` เสร็จ (FORMAT_SPEC 2.3) แต่ `K_hdr_session` ก็มาจาก `ss`
@@ -1010,10 +1030,12 @@ byte-exact — คนละคำถาม ต้องมีทั้งคู�
 **`holds_a_message()`** — ตั้งชื่อตามสิ่งที่มันตอบจริง ๆ เพื่อให้ UI ไม่ไปเขียนเวอร์ชันของตัวเอง
 ด้วยการ catch exception แล้วแยกเส้นผิด
 
-#### 8.6 `pipeline/engines/lsbpp.py` + `locomotive.py` + `metadata.py` ☐
+#### 8.6 `pipeline/engines/lsbpp.py` + `locomotive.py` + `metadata.py` ✕ ตัดทิ้ง (2026-09-07)
 
-**ขึ้นกับ:** 8.2, 3.4
-**DoD:** นำโค้ดเดิมกลับแล้วห่อให้เข้า `Engine` interface · `supported_domains = ("dct", "spatial")` เท่านั้น · `metadata` ตัดส่วน MP3 ID3 ออก
+**ตัดออกจากขอบเขต** — DoD เดิมคือ "นำโค้ดเดิมกลับมาห่อให้เข้า `Engine` interface" แต่โค้ดเดิม
+ไม่ได้อยู่ใน repo นี้เลย (มีแต่ `locomotive-icon.svg` ที่เป็นไอคอน) และ engine เหล่านั้นเป็น LSB
+ธรรมดาที่ตรวจจับง่ายกว่าสาย adaptive ทั้งหมดที่โปรเจกต์นี้สร้างขึ้น การมีอยู่ของมันจึงเพิ่มพื้นที่
+ให้ผู้ใช้เลือกผิดมากกว่าเพิ่มความสามารถ
 
 #### 8.7 `pipeline/yaml/` ☐
 
@@ -1182,7 +1204,7 @@ pipeline resolve engine ด้วย registry ตัวหนึ่ง แล้
 | 5 | 5.1 stc · 5.2 native · 5.3 simulator | ☑ ☐ ☑ |
 | 6 | 6.1 base · 6.2 juniward · 6.3 uerd · 6.4 hill · 6.5 si · 6.6 legacy | ☑ ☑ ☑ ☑ ☑ ☑ |
 | 7 | 7.1 kdf · 7.2 kem · 7.3 auth · 7.4 aead · 7.5 header · 7.6 ratchet · 7.7 keystore | ☑ ☑ ☑ ☑ ☑ ☑ ☑ |
-| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☑ ☐ ☑ ☐ ☐ ◐ |
+| 8 | 8.1 context · 8.2 engine base · 8.3 juniward-stc · 8.4 hill-stc · 8.5 embed/extract · 8.6 legacy engines · 8.7 yaml · 8.8 cli | ☑ ☑ ☑ ☐ ☑ ✕ ☐ ◐ |
 | 9 | 9.1 shell · 9.2 pages · 9.3 tabs · 9.4 identity | ☐ ☐ ☐ ☐ |
 | 10 | 10.1 datasets · 10.2 features · 10.3 srnet · 10.4 experiments | ☐ ☐ ☐ ☐ |
 | 11 | 11.1 sandbox · 11.2 fuzz · 11.3 supply chain · 11.4 release | ☐ ☐ ☐ ☐ |

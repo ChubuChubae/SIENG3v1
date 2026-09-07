@@ -287,6 +287,10 @@ class EmbedPage(BasePage):
                 return message
         if self.output.path == self.cover.path:
             return "The result cannot overwrite the cover image"
+        if not self.meter.fits:
+            # The meter has already said so in numbers. The button agrees with it rather
+            # than letting the user find out after the cost map has run.
+            return "This file will not fit in this image at this rate"
         return ""
 
     def _update_capacity(self) -> None:

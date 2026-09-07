@@ -288,3 +288,40 @@ def test_a_ciphertext_moved_to_another_image_is_refused(tmp_path):
 
         with pytest.raises(DecryptError):
             extract(engine, tmp_path / "transplanted.jpg", recv)
+
+
+# ---- a photograph, not a test pattern --------------------------------------
+#
+# Everything above uses 512x512. A 1200x960 photo has around 3.3 million coefficients,
+# and the trellis used to be held whole at one decision per state per column: 3.2 GiB,
+# which meant an ordinary picture could not be used as a cover at all. Nothing in the
+# suite noticed, because nothing in the suite was ever that big.
+#
+# Marked slow: it is a minute of honest work, not a second.
+
+
+def a_photograph(path, height=960, width=1200):
+    """A JPEG the size of something off a phone. Built here so no megabyte is committed."""
+    from PIL import Image
+
+    rng = np.random.default_rng(20260907)
+    gradient = np.add.outer(np.linspace(0, 200, height), np.linspace(0, 55, width))
+    noise = rng.normal(0, 12, size=(height, width))
+    plane = np.clip(gradient + noise, 0, 255).astype(np.uint8)
+    Image.fromarray(plane, "L").save(path, quality=75, optimize=False)
+    return path
+
+
+@pytest.mark.slow
+def test_a_full_size_photograph_can_carry_a_message(tmp_path):
+    """The case a user actually has. This is the one that failed before segmenting."""
+    cover = a_photograph(tmp_path / "photo.jpg")
+    send, recv = two_sessions(tmp_path)
+    engine = an_engine()
+    payload = b"a message hidden in a photograph rather than in a test pattern"
+    stego = tmp_path / "photo-out.jpg"
+
+    result = embed(engine, cover, stego, payload, send)
+
+    assert result.capacity_base > 1_000_000
+    assert extract(engine, stego, recv).payload == payload

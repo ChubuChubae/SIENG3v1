@@ -154,6 +154,9 @@ class CapacityMeter(QFrame):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("capacityMeter")
+        # Whether what is on screen would actually fit. The page asks before it lets the
+        # button be pressed, so the meter and the button can never disagree.
+        self.fits = False
         column = QVBoxLayout(self)
         column.setContentsMargins(14, 12, 14, 12)
         column.setSpacing(7)
@@ -171,6 +174,7 @@ class CapacityMeter(QFrame):
 
     def show_unknown(self, message: str) -> None:
         """No number to give, so no bar to draw."""
+        self.fits = False
         self.headline.setText(message)
         self.note.setText("")
         self.bar.setValue(0)
@@ -178,6 +182,7 @@ class CapacityMeter(QFrame):
 
     def show_fill(self, needed: int, available: int) -> None:
         percent = 100 if available <= 0 else round(needed * 100 / available)
+        self.fits = needed <= available
         self.headline.setText(
             f"{human_size(needed)} to hide · about {human_size(available)} available "
             f"at this rate · {percent}% full"
@@ -200,6 +205,7 @@ class CapacityMeter(QFrame):
             self._tone("ok")
 
     def show_capacity_only(self, available: int) -> None:
+        self.fits = False
         self.headline.setText(f"About {human_size(available)} would fit at this rate")
         self.note.setText("Choose the file to hide to see how full that would leave it.")
         self.bar.setValue(0)

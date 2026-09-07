@@ -4,6 +4,8 @@ Sizes here are kept small on purpose. The trellis is O(n * 2**h), so a realistic
 h=12 belongs in a benchmark, not in a suite that runs on every change.
 """
 
+import tracemalloc
+
 import numpy as np
 import pytest
 
@@ -26,7 +28,8 @@ from sieng.coder.simulator import (
     ternary_bound,
     ternary_payload,
 )
-from sieng.coder.stc import distortion, embed, extract, usable_length
+from sieng.coder import stc
+from sieng.coder.stc import distortion, embed, extract, segment_bits, usable_length
 from sieng.common.errors import CapacityError
 
 RATES = [0.05, 0.1, 0.2, 0.4]
@@ -295,3 +298,66 @@ def test_the_loss_is_close_to_the_bound():
     loss = coding_loss(distortion(values, stego, rho, rho), cost, bits.size)
 
     assert 1.0 <= loss < 1.5
+
+
+# ---- segmenting the trellis ------------------------------------------------
+#
+# The trellis used to be held whole, which is n * 2**h decisions. On a 1200x960 photo at
+# the default height that is 3.2 GiB, so an ordinary picture could not be used as a cover
+# at all. It is now solved in segments. These say what that is allowed to cost.
+
+
+def test_segmenting_changes_nothing_about_the_answer(monkeypatch):
+    """The whole point: the segments are a memory trick, not a different algorithm.
+
+    Anything less than exact equality would mean stego files depend on how much memory
+    the machine that made them happened to have.
+    """
+    values, rho = cover(4000), np.random.default_rng(9).random(4000) + 0.1
+    bits = message(200)
+
+    whole = embed(values, rho, rho, bits, MIN_HEIGHT)
+    monkeypatch.setattr(stc, "SEGMENT_COLUMNS", 128)
+    in_pieces = embed(values, rho, rho, bits, MIN_HEIGHT)
+
+    assert np.array_equal(whole, in_pieces)
+
+
+def test_a_segmented_message_still_reads_back(monkeypatch):
+    """The receiver is never told where the segments were, so the joins must be invisible."""
+    monkeypatch.setattr(stc, "SEGMENT_COLUMNS", 64)
+    values, rho = cover(4000), np.random.default_rng(10).random(4000) + 0.1
+    bits = message(200)
+
+    stego = embed(values, rho, rho, bits, MIN_HEIGHT)
+
+    assert np.array_equal(extract(stego, bits.size, MIN_HEIGHT), bits)
+
+
+def test_memory_follows_the_segment_and_not_the_image(monkeypatch):
+    """The bug, in one assertion: holding the whole trellis is what made photos impossible.
+
+    Measured against itself rather than against a fixed number of bytes, because what
+    must be true is the shape of the growth, not a figure that depends on the machine.
+    """
+    values, rho = cover(8000), np.random.default_rng(11).random(8000) + 0.1
+    bits = message(400)
+
+    def peak_bytes():
+        tracemalloc.start()
+        embed(values, rho, rho, bits, DEFAULT_HEIGHT)
+        peak = tracemalloc.get_traced_memory()[1]
+        tracemalloc.stop()
+        return peak
+
+    monkeypatch.setattr(stc, "SEGMENT_COLUMNS", 8000 * 2)
+    whole = peak_bytes()
+    monkeypatch.setattr(stc, "SEGMENT_COLUMNS", 512)
+    segmented = peak_bytes()
+
+    assert segmented < whole / 2
+
+
+def test_a_segment_is_at_least_one_block_and_never_more_than_the_message():
+    assert segment_bits(width=10_000_000, height=10, n_bits=50) == 1
+    assert segment_bits(width=1, height=10, n_bits=20) == 20
