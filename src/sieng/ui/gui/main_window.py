@@ -11,9 +11,13 @@ with the window rather than with the program.
 
 Pages are created once and kept in a QStackedWidget. They hold state a user is part way
 through entering, and rebuilding a page on every visit would throw that away.
+
+The session bar sits between the title bar and the pages because a session is the state the
+whole window is working in, not a setting belonging to one screen. One selection object is
+made here and handed to every page that needs it.
 """
 
-from PyQt6.QtCore import QPoint, Qt
+from PyQt6.QtCore import QPoint, QSize, Qt
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -26,9 +30,12 @@ from PyQt6.QtWidgets import (
 )
 
 from sieng import __version__
+from sieng.ui.gui.components.icons import icon
+from sieng.ui.gui.components.session_bar import SessionBar, SessionSelection
+from sieng.ui.gui.components.widgets import label
 
-WINDOW_SIZE = (1120, 760)
-SIDEBAR_WIDTH = 210
+WINDOW_SIZE = (1180, 800)
+SIDEBAR_WIDTH = 216
 
 
 class MainWindow(QWidget):
@@ -46,6 +53,10 @@ class MainWindow(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
         outer.addWidget(_TitleBar(self))
+
+        # One session for the whole window. Pages read it; the Sessions page writes it.
+        self.session = SessionSelection()
+        outer.addWidget(SessionBar(self.session))
 
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
@@ -80,25 +91,43 @@ class MainWindow(QWidget):
         from sieng.ui.gui.pages.extract_page import ExtractPage
         from sieng.ui.gui.pages.session_page import SessionPage
 
-        for title, page in (
-            ("Hide", EmbedPage(self.container)),
-            ("Recover", ExtractPage(self.container)),
-            ("Sessions", SessionPage(self.container)),
-            ("About", AboutPage(self.container)),
-        ):
-            self._add_page(title, page)
+        # Grouped, because "hide a file" and "manage a session" are different kinds of
+        # task and a flat list of four makes them look interchangeable.
+        self._add_section("FILES")
+        self._add_page("Hide File", "lock-plus", EmbedPage(self.container, self.session))
+        self._add_page("Read File", "lock-open", ExtractPage(self.container, self.session))
+        self._add_section("SETUP")
+        self._add_page("Sessions", "key", SessionPage(self.container, self.session))
+        self._add_page("About", "help", AboutPage(self.container))
 
         first = self._sidebar_buttons.button(0)
         if first is not None:
             first.setChecked(True)
         self._sidebar_layout.addStretch(1)
+        self._add_footer()
 
-    def _add_page(self, title: str, page: QWidget) -> None:
+    def _add_footer(self) -> None:
+        """The one place the version is visible without opening a page."""
+        for text, name in (
+            ("SIENG3", "sidebarFooterName"),
+            ("Local steganography", "sidebarFooterLine"),
+            (f"v{__version__}", "sidebarFooterLine"),
+        ):
+            self._sidebar_layout.addWidget(label(text, name))
+
+    def _add_section(self, title: str) -> None:
+        heading = QLabel(title)
+        heading.setObjectName("sidebarSectionLabel")
+        self._sidebar_layout.addWidget(heading)
+
+    def _add_page(self, title: str, icon_name: str, page: QWidget) -> None:
         index = self.pages.count()
         self.pages.addWidget(page)
 
-        button = QPushButton(title)
+        button = QPushButton(f"  {title}")
         button.setObjectName("sidebarButton")
+        button.setIcon(icon(icon_name))
+        button.setIconSize(QSize(17, 17))
         button.setCheckable(True)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.clicked.connect(lambda _checked, i=index: self.pages.setCurrentIndex(i))
